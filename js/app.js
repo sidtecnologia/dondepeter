@@ -190,7 +190,13 @@ const generateProductCard = (p) => {
     return `
       <div class="product-card${stockClass}" data-product-id="${p.id}">
         ${bestSellerTag}
-        <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
+        <div class="image-wrap">
+          <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
+          <div class="image-hint" aria-hidden="true">
+            <i class="fas fa-hand-point-up" aria-hidden="true"></i>
+            <span>Presiona para añadir</span>
+          </div>
+        </div>
         ${stockOverlay}
         <div class="product-info">
           <div>
@@ -225,6 +231,35 @@ function renderProducts(container, data, page = 1, perPage = 20, withPagination 
         renderPagination(page, totalPages, data, perPage);
     } else {
         if (paginationContainer) paginationContainer.innerHTML = '';
+    }
+}
+
+function showImageHints(container) {
+    // Mostrar el hint de forma temporal en las primeras tarjetas (para indicar acción)
+    try {
+        const hints = container.querySelectorAll('.image-hint');
+        // Mostrar en las primeras 6 tarjetas o las que haya
+        const max = Math.min(6, hints.length);
+        for (let i = 0; i < max; i++) {
+            const h = hints[i];
+            // añadir clase que dispara la animación/fade
+            h.classList.add('show-hint');
+            // animar con pequeño delay escalonado para efecto cascada
+            h.style.transitionDelay = `${i * 120}ms`;
+        }
+        // quitar la clase después de X ms (por ejemplo 2200ms)
+        setTimeout(() => {
+            for (let i = 0; i < max; i++) {
+                const h = hints[i];
+                if (h) {
+                    h.classList.remove('show-hint');
+                    h.style.transitionDelay = '';
+                }
+            }
+        }, 2200);
+    } catch (err) {
+        // no bloquear si falla
+        console.warn('showImageHints err', err);
     }
 }
 

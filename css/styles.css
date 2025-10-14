@@ -848,3 +848,90 @@ body {
     font-size: 0.9rem;
   }
 }
+
+.image-wrap {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: 10px 10px 0 0; /* coincide con la tarjeta */
+}
+
+/* El hint: por defecto oculto, aparece con una animación fundida/pulse */
+.image-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.98);
+  background: rgba(0, 0, 0, 0.64);
+  color: #fff;
+  padding: 6px 10px;
+  border-radius: 20px;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.86rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 260ms ease, transform 360ms cubic-bezier(.2,.9,.3,1);
+  will-change: opacity, transform;
+  z-index: 8;
+}
+
+/* Icono dentro del hint (usa FontAwesome ya cargado) */
+.image-hint i {
+  font-size: 1rem;
+  color: #fff;
+}
+
+/* Clase que activa la animación "fundida/pulse" temporal */
+.image-hint.show-hint {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  animation: hint-pulse 1100ms ease-in-out 1;
+}
+
+/* Si el usuario pasa el cursor o toca la imagen, mostramos el hint (interacción) */
+.image-wrap:hover .image-hint,
+.image-wrap:focus-within .image-hint {
+  opacity: 1;
+  transform: translate(-50%, -50%) scale(1);
+  transition-duration: 160ms;
+}
+
+/* animación suave tipo fade + pequeño movimiento */
+@keyframes hint-pulse {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -42%) scale(0.96);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.02);
+  }
+  60% {
+    opacity: 1;
+    transform: translate(-50%, -52%) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -62%) scale(0.98);
+  }
+}
+
+/* Responsive: asegurar que no tape elementos importantes en móviles */
+@media (max-width: 420px) {
+  .image-hint {
+    font-size: 0.8rem;
+    padding: 6px 8px;
+  }
+  .image-hint i { font-size: 0.92rem; }
+}
+
+/* Evitar movimientos para usuarios que prefieren reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .image-hint,
+  .image-hint.show-hint {
+    animation: none;
+    transition: none;
+  }
+}
