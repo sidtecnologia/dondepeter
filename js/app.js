@@ -263,6 +263,79 @@ function showImageHints(container) {
     }
 }
 
+function enableTouchHints() {
+  let lastTouchedCard = null;
+  let lastTouchMoved = false;
+
+  // Mostrar hint al tocar una tarjeta (touchstart)
+  function onTouchStart(e) {
+    lastTouchMoved = false;
+    const card = e.target.closest('.product-card');
+    if (!card) return;
+
+    // No mostrar si el target es un control interactivo (botón, input, enlace)
+    if (e.target.closest('button, a, input, textarea, select')) return;
+
+    const hint = card.querySelector('.image-hint');
+    if (!hint) return;
+
+    // Mostrar hint (usa la misma clase .show-hint que el CSS de hint)
+    hint.classList.add('show-hint');
+
+    // Guardar y limpiar timeout anterior si existe
+    if (card._hintTimeout) {
+      clearTimeout(card._hintTimeout);
+      card._hintTimeout = null;
+    }
+
+    // Ocultar automát. después de X ms
+    card._hintTimeout = setTimeout(() => {
+      hint.classList.remove('show-hint');
+      card._hintTimeout = null;
+    }, 2200);
+
+    lastTouchedCard = card;
+  }
+
+  // Si detectamos movimiento, lo interpretamos como scroll y ocultamos el hint
+  function onTouchMove() {
+    lastTouchMoved = true;
+    if (lastTouchedCard) {
+      const h = lastTouchedCard.querySelector('.image-hint');
+      if (h) h.classList.remove('show-hint');
+      if (lastTouchedCard._hintTimeout) {
+        clearTimeout(lastTouchedCard._hintTimeout);
+        lastTouchedCard._hintTimeout = null;
+      }
+      lastTouchedCard = null;
+    }
+  }
+
+  // Al terminar el touch, si fue un tap (no hubo movimiento) mantenemos el hint un poco
+  function onTouchEnd() {
+    if (!lastTouchedCard) return;
+    const h = lastTouchedCard.querySelector('.image-hint');
+    if (h && !lastTouchMoved) {
+      // mantener un poco visible para que el usuario lo note al tocar
+      setTimeout(() => {
+        h.classList.remove('show-hint');
+      }, 700);
+    } else {
+      if (h) h.classList.remove('show-hint');
+    }
+    if (lastTouchedCard && lastTouchedCard._hintTimeout) {
+      clearTimeout(lastTouchedCard._hintTimeout);
+      lastTouchedCard._hintTimeout = null;
+    }
+    lastTouchedCard = null;
+  }
+
+  // Delegación global ligera: passive para no bloquear scroll
+  document.addEventListener('touchstart', onTouchStart, { passive: true });
+  document.addEventListener('touchmove', onTouchMove, { passive: true });
+  document.addEventListener('touchend', onTouchEnd, { passive: true });
+}
+
 function renderPagination(currentPage, totalPages, data, perPage) {
     const paginationContainer = document.getElementById('pagination-container');
     paginationContainer.innerHTML = '';
