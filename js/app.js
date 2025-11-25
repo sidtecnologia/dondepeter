@@ -1,8 +1,10 @@
 /**
- * Adaptaciones para catálogo de vestuario:
- * - Collage como mosaico cuadrado colocado entre categorías y destacados
- * - Selección de talla/color como botones
- * - Precio fijo al final de la tarjeta
+ * @license
+ * Copyright © 2025 Tecnología y Soluciones Informáticas. Todos los derechos reservados.
+ *
+ * DONDE PETER PWA
+ *
+ * Este software es propiedad confidencial y exclusiva de TECSIN.
  */
 
 const { createClient } = supabase;
@@ -11,14 +13,16 @@ let SB_URL = null;
 let SB_ANON_KEY = null;
 let supabaseClient = null;
 
+// --- Variables de estado ---
 let cart = [];
 let products = [];
 let currentImageIndex = 0;
 let currentProduct = null;
 let deferredPrompt = null;
+const PRODUCTS_PER_PAGE = 25;
 let orderDetails = {};
 
-// DOM references
+// --- Referencias del DOM ---
 const collageGrid = document.getElementById('collage-grid');
 const featuredContainer = document.getElementById('featured-grid');
 const offersGrid = document.getElementById('offers-grid');
@@ -62,6 +66,7 @@ const sizeOptionsRow = document.getElementById('size-options');
 const colorOptionsRow = document.getElementById('color-options');
 const modalRequiredHint = document.getElementById('modal-required-hint');
 
+// --- Funciones de Ayuda ---
 const money = (v) => {
     const value = Math.floor(v);
     return value.toLocaleString('es-CO');
@@ -75,7 +80,7 @@ const shuffleArray = (array) => {
     return array;
 };
 
-// Banner carousel (kept same)
+// --- Lógica del carrusel de banner ---
 const bannerCarousel = document.getElementById('banner-carousel');
 const bannerDots = document.getElementById('banner-dots');
 if (bannerCarousel) {
@@ -144,10 +149,28 @@ if (bannerCarousel) {
             resetInterval();
         }
     });
+    let isDown = false,
+        startXMouse;
+    bannerCarousel.addEventListener('mousedown', e => {
+        isDown = true;
+        startXMouse = e.pageX;
+    });
+    bannerCarousel.addEventListener('mouseup', e => {
+        if (!isDown) return;
+        let diff = e.pageX - startXMouse;
+        if (diff > 50) {
+            currentBanner = (currentBanner - 1);
+            updateBanner();
+        } else if (diff < -50) {
+            nextBanner();
+        }
+        isDown = false;
+        resetInterval();
+    });
     resetInterval();
 }
 
-// Generate product card (price at bottom ensured by CSS)
+// --- Funciones para renderizar productos ---
 const generateProductCard = (p) => {
     let bestSellerTag = '';
     if (p.bestSeller) {
@@ -165,7 +188,7 @@ const generateProductCard = (p) => {
       <div class="product-card${stockClass}" data-product-id="${p.id}">
         ${bestSellerTag}
         <div class="image-wrap">
-          <img src="${p.image && p.image[0] ? p.image[0] : 'img/favicon.png'}" alt="${escapeHtml(p.name)}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
+          <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
           <div class="image-hint" aria-hidden="true">
             <i class="fas fa-hand-point-up" aria-hidden="true"></i>
             <span>Presiona para ver</span>
@@ -174,8 +197,8 @@ const generateProductCard = (p) => {
         ${stockOverlay}
         <div class="product-info">
           <div>
-            <div class="product-name">${escapeHtml(p.name)}</div>
-            <div class="product-description">${escapeHtml(p.description || '')}</div>
+            <div class="product-name">${p.name}</div>
+            <div class="product-description">${p.description}</div>
           </div>
           <div style="margin-top:8px">
             <div class="product-price">$${money(p.price)}</div>
@@ -185,7 +208,8 @@ const generateProductCard = (p) => {
     `;
 };
 
-// Render products (unchanged)
+
+// --- Renderizado con paginación ---
 function renderProducts(container, data, page = 1, perPage = 20, withPagination = false) {
     container.innerHTML = '';
     const paginationContainer = document.getElementById('pagination-container');
@@ -208,14 +232,19 @@ function renderProducts(container, data, page = 1, perPage = 20, withPagination 
 }
 
 function showImageHints(container) {
+    // Mostrar el hint de forma temporal en las primeras tarjetas (para indicar acción)
     try {
         const hints = container.querySelectorAll('.image-hint');
+        // Mostrar en las primeras 6 tarjetas o las que haya
         const max = Math.min(6, hints.length);
         for (let i = 0; i < max; i++) {
             const h = hints[i];
+            // añadir clase que dispara la animación/fade
             h.classList.add('show-hint');
+            // animar con pequeño delay escalonado para efecto cascada
             h.style.transitionDelay = `${i * 120}ms`;
         }
+        // quitar la clase después de X ms (por ejemplo 2200ms)
         setTimeout(() => {
             for (let i = 0; i < max; i++) {
                 const h = hints[i];
@@ -226,6 +255,7 @@ function showImageHints(container) {
             }
         }, 2200);
     } catch (err) {
+        // no bloquear si falla
         console.warn('showImageHints err', err);
     }
 }
@@ -234,25 +264,37 @@ function enableTouchHints() {
   let lastTouchedCard = null;
   let lastTouchMoved = false;
 
+  // Mostrar hint al tocar una tarjeta (touchstart)
   function onTouchStart(e) {
     lastTouchMoved = false;
     const card = e.target.closest('.product-card');
     if (!card) return;
+
+    // No mostrar si el target es un control interactivo (botón, input, enlace)
     if (e.target.closest('button, a, input, textarea, select')) return;
+
     const hint = card.querySelector('.image-hint');
     if (!hint) return;
+
+    // Mostrar hint (usa la misma clase .show-hint que el CSS de hint)
     hint.classList.add('show-hint');
+
+    // Guardar y limpiar timeout anterior si existe
     if (card._hintTimeout) {
       clearTimeout(card._hintTimeout);
       card._hintTimeout = null;
     }
+
+    // Ocultar automát. después de X ms
     card._hintTimeout = setTimeout(() => {
       hint.classList.remove('show-hint');
       card._hintTimeout = null;
     }, 2200);
+
     lastTouchedCard = card;
   }
 
+  // Si detectamos movimiento, lo interpretamos como scroll y ocultamos el hint
   function onTouchMove() {
     lastTouchMoved = true;
     if (lastTouchedCard) {
@@ -266,10 +308,12 @@ function enableTouchHints() {
     }
   }
 
+  // Al terminar el touch, si fue un tap (no hubo movimiento) mantenemos el hint un poco
   function onTouchEnd() {
     if (!lastTouchedCard) return;
     const h = lastTouchedCard.querySelector('.image-hint');
     if (h && !lastTouchMoved) {
+      // mantener un poco visible para que el usuario lo note al tocar
       setTimeout(() => {
         h.classList.remove('show-hint');
       }, 700);
@@ -283,6 +327,7 @@ function enableTouchHints() {
     lastTouchedCard = null;
   }
 
+  // Delegación global ligera: passive para no bloquear scroll
   document.addEventListener('touchstart', onTouchStart, { passive: true });
   document.addEventListener('touchmove', onTouchMove, { passive: true });
   document.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -318,7 +363,6 @@ function renderPagination(currentPage, totalPages, data, perPage) {
 }
 
 const generateCategoryCarousel = () => {
-    if (!categoryCarousel) return;
     categoryCarousel.innerHTML = '';
     const categories = Array.from(new Set(products.map(p => p.category))).map(c => ({ label: c }));
     const allItem = document.createElement('div');
@@ -341,7 +385,7 @@ searchInput.addEventListener('input', (e) => {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => (p.name || '').toLowerCase().includes(q) || (p.description || '').toLowerCase().includes(q) || (p.category || '').toLowerCase().includes(q));
+    const filtered = products.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
     filteredSection.style.display = 'block';
     featuredSection.style.display = 'none';
     offersSection.style.display = 'none';
@@ -370,7 +414,7 @@ categoryCarousel.addEventListener('click', (ev) => {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => (p.category || '').toLowerCase() === cat.toLowerCase());
+    const filtered = products.filter(p => p.category.toLowerCase() === cat.toLowerCase());
     filteredSection.style.display = 'block';
     featuredSection.style.display = 'none';
     offersSection.style.display = 'none';
@@ -378,9 +422,7 @@ categoryCarousel.addEventListener('click', (ev) => {
     renderProducts(allFilteredContainer, filtered, 1, 20, true);
 });
 
-// draggable category (kept)
 (function makeCarouselDraggable() {
-    if (!categoryCarousel) return;
     let isDown = false,
         startX, scrollLeft;
     categoryCarousel.addEventListener('mousedown', (e) => {
@@ -409,7 +451,6 @@ categoryCarousel.addEventListener('click', (ev) => {
     });
 })();
 
-// Delegated click handling for product modal and add-to-cart
 document.addEventListener('click', (e) => {
     if (e.target.closest('.modal-trigger')) {
         const id = e.target.dataset.id;
@@ -417,10 +458,11 @@ document.addEventListener('click', (e) => {
     }
     if (e.target.id === 'modal-add-to-cart-btn') {
         const qty = Math.max(1, parseInt(qtyInput.value) || 1);
-        const selectedSizeBtn = sizeOptionsRow?.querySelector('.option-btn.selected');
-        const selectedColorBtn = colorOptionsRow?.querySelector('.option-btn.selected');
-        const selectedSize = selectedSizeBtn?.dataset?.value || '';
-        const selectedColor = selectedColorBtn?.dataset?.value || '';
+        // obtener selección por botones
+        const selectedSizeBtn = document.querySelector('#size-options .option-btn.selected');
+        const selectedColorBtn = document.querySelector('#color-options .option-btn.selected');
+        const selectedSize = selectedSizeBtn ? selectedSizeBtn.dataset.value : '';
+        const selectedColor = selectedColorBtn ? selectedColorBtn.dataset.value : '';
 
         if (!selectedSize || !selectedColor) {
             triggerRequiredAnimation();
@@ -432,12 +474,13 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// option buttons delegation (selecting size/color)
+// --- click delegation para botones de opciones (talla/color) ---
 document.addEventListener('click', (e) => {
     const btn = e.target.closest('.option-btn');
     if (!btn) return;
     const parent = btn.parentElement;
-    // toggle single-selection within group
+    if (!parent) return;
+    // quitar selección previa en el grupo
     parent.querySelectorAll('.option-btn').forEach(b => {
         b.classList.remove('selected');
         b.setAttribute('aria-pressed', 'false');
@@ -446,7 +489,7 @@ document.addEventListener('click', (e) => {
     btn.setAttribute('aria-pressed', 'true');
 });
 
-// Modals open/close helpers
+// --- Lógica de Modales ---
 function showModal(modal) {
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
@@ -458,7 +501,6 @@ function closeModal(modal) {
 }
 
 [productModal, cartModal, checkoutModal, orderSuccessModal].forEach(modal => {
-    if (!modal) return;
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeModal(modal);
@@ -469,47 +511,51 @@ function closeModal(modal) {
     });
 });
 
-closeSuccessBtn && closeSuccessBtn.addEventListener('click', () => {
+closeSuccessBtn.addEventListener('click', () => {
     closeModal(orderSuccessModal);
 });
 
-// open product modal and populate option buttons for size/color
+// --- openProductModal actualizado para poblar botones ---
 function openProductModal(id) {
     const product = products.find(p => p.id === id);
     if (!product) return;
     currentProduct = product;
     modalProductName.textContent = product.name;
-    modalProductDescription.textContent = product.description || '';
+    modalProductDescription.textContent = product.description;
     modalProductPrice.textContent = `$${money(product.price)}`;
     qtyInput.value = 1;
+    modalAddToCartBtn.dataset.id = product.id;
     updateCarousel(product.image || []);
+    // poblar botones de talla/color (acepta string "S,M,L" o array)
     populateOptionButtons(sizeOptionsRow, product.size || product.sizes || []);
     populateOptionButtons(colorOptionsRow, product.color || product.colors || []);
+    modalRequiredHint.classList.remove('show-hint');
     modalRequiredHint.classList.remove('show');
-    sizeOptionsRow?.classList.remove('required-pulse');
-    colorOptionsRow?.classList.remove('required-pulse');
     showModal(productModal);
 }
 
-function populateOptionButtons(container, rawOptions) {
+// helper para crear botones a partir de datos (array o comma string)
+function populateOptionButtons(container, raw) {
     if (!container) return;
     container.innerHTML = '';
     let arr = [];
-    if (Array.isArray(rawOptions)) arr = rawOptions;
-    else if (typeof rawOptions === 'string' && rawOptions.trim().length) {
-        arr = rawOptions.split(',').map(s => s.trim()).filter(Boolean);
-    } else if (rawOptions) {
-        arr = [rawOptions];
+    if (Array.isArray(raw)) arr = raw;
+    else if (typeof raw === 'string' && raw.trim().length) {
+        arr = raw.split(',').map(s => s.trim()).filter(Boolean);
+    } else if (raw) {
+        arr = [raw];
     }
-    // If empty, show a disabled placeholder button
+
     if (arr.length === 0) {
-        const b = document.createElement('button');
-        b.className = 'option-btn';
-        b.disabled = true;
-        b.textContent = '-';
-        container.appendChild(b);
+        const btn = document.createElement('button');
+        btn.className = 'option-btn';
+        btn.type = 'button';
+        btn.disabled = true;
+        btn.textContent = '-';
+        container.appendChild(btn);
         return;
     }
+
     arr.forEach(opt => {
         const b = document.createElement('button');
         b.type = 'button';
@@ -521,15 +567,15 @@ function populateOptionButtons(container, rawOptions) {
     });
 }
 
-// animation hint when missing selections
+// animación/indicación cuando faltan seleccion
 function triggerRequiredAnimation() {
     modalRequiredHint.classList.add('show');
-    if (!sizeOptionsRow.querySelector('.option-btn.selected')) {
+    if (!document.querySelector('#size-options .option-btn.selected')) {
         sizeOptionsRow.classList.remove('required-pulse');
         void sizeOptionsRow.offsetWidth;
         sizeOptionsRow.classList.add('required-pulse');
     }
-    if (!colorOptionsRow.querySelector('.option-btn.selected')) {
+    if (!document.querySelector('#color-options .option-btn.selected')) {
         colorOptionsRow.classList.remove('required-pulse');
         void colorOptionsRow.offsetWidth;
         colorOptionsRow.classList.add('required-pulse');
@@ -541,37 +587,42 @@ function triggerRequiredAnimation() {
     }, 900);
 }
 
-// Collage: place images in grid using random spans (1..3)
-function renderCollage(items = [], maxItems = 12) {
+// --- Collage rendering (mosaic grid) ---
+function renderCollage(items = [], count = 12) {
     if (!collageGrid) return;
     collageGrid.innerHTML = '';
     const pool = shuffleArray(items.slice());
-    const take = pool.slice(0, Math.min(maxItems, pool.length));
-    for (let i = 0; i < take.length; i++) {
-        const p = take[i];
-        const div = document.createElement('div');
-        div.className = 'collage-item';
+    const take = pool.slice(0, Math.min(count, pool.length));
+    take.forEach((p) => {
+        const el = document.createElement('div');
+        el.className = 'collage-item';
         const img = document.createElement('img');
         img.src = (p.image && p.image[0]) ? p.image[0] : 'img/favicon.png';
-        img.alt = p.name || 'producto';
+        img.alt = p.name || '';
         img.loading = 'lazy';
         img.dataset.id = p.id;
-        div.appendChild(img);
+        el.appendChild(img);
 
-        // random spans 1..3 but prefer smaller spans for more tiles
+        // spans aleatorios (1..3) para crear mosaico; el grid los organizará
         const spanX = Math.random() < 0.25 ? 3 : (Math.random() < 0.35 ? 2 : 1);
         const spanY = Math.random() < 0.25 ? 3 : (Math.random() < 0.35 ? 2 : 1);
-        div.style.gridColumnEnd = `span ${spanX}`;
-        div.style.gridRowEnd = `span ${spanY}`;
+        el.style.gridColumnEnd = `span ${spanX}`;
+        el.style.gridRowEnd = `span ${spanY}`;
 
-        div.addEventListener('click', () => openProductModal(p.id));
-        collageGrid.appendChild(div);
-    }
+        el.addEventListener('click', () => openProductModal(p.id));
+        collageGrid.appendChild(el);
+    });
 }
 
-// Carousel images
+// --- Anuncios ---
+document.querySelectorAll('.ad-image').forEach(img => {
+    img.addEventListener('click', () => {
+        const id = img.dataset.productId;
+        openProductModal(id);
+    });
+});
+
 function updateCarousel(images) {
-    if (!carouselImagesContainer) return;
     carouselImagesContainer.innerHTML = '';
     if (!images || images.length === 0) {
         carouselImagesContainer.innerHTML = `<div class="carousel-image" style="display:flex;align-items:center;justify-content:center;background:#f3f3f3">Sin imagen</div>`;
@@ -591,11 +642,13 @@ prevBtn && prevBtn.addEventListener('click', () => {
     if (currentImageIndex > 0) currentImageIndex--;
     updateCarouselPosition();
 });
+
 nextBtn && nextBtn.addEventListener('click', () => {
     const imgs = carouselImagesContainer.querySelectorAll('.carousel-image');
     if (currentImageIndex < imgs.length - 1) currentImageIndex++;
     updateCarouselPosition();
 });
+
 function updateCarouselPosition() {
     const imgs = carouselImagesContainer.querySelectorAll('.carousel-image');
     if (imgs.length === 0) return;
@@ -604,9 +657,7 @@ function updateCarouselPosition() {
 }
 window.addEventListener('resize', updateCarouselPosition);
 
-// CART (includes size & color)
 function updateCart() {
-    if (!cartItemsContainer) return;
     cartItemsContainer.innerHTML = '';
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
@@ -615,27 +666,14 @@ function updateCart() {
         cartTotalElement.textContent = money(0);
         return;
     }
-    let total = 0, totalItems = 0;
+    let total = 0,
+        totalItems = 0;
     cart.forEach((item, idx) => {
         total += item.price * item.qty;
         totalItems += item.qty;
         const div = document.createElement('div');
         div.className = 'cart-item';
-        div.innerHTML = `
-          <div style="display:flex;align-items:center;gap:8px;">
-            <img src="${item.image}" alt="${escapeHtml(item.name)}" style="width:48px;height:48px;object-fit:cover;border-radius:6px;">
-            <div style="min-width:160px;">
-              <div style="font-weight:700">${escapeHtml(item.name)}</div>
-              <div style="font-size:0.86rem;color:#666">Talla: ${escapeHtml(item.size || '')} • Color: ${escapeHtml(item.color || '')}</div>
-              <div style="font-size:0.86rem;color:#666">Precio: $${money(item.price)}</div>
-            </div>
-          </div>
-          <div class="controls">
-            <button class="qty-btn" data-idx="${idx}" data-op="dec">-</button>
-            <div style="min-width:26px;text-align:center">${item.qty}</div>
-            <button class="qty-btn" data-idx="${idx}" data-op="inc">+</button>
-          </div>
-        `;
+        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><stro[...]
         cartItemsContainer.appendChild(div);
     });
     cartBadge.style.display = 'flex';
@@ -646,53 +684,97 @@ function updateCart() {
 function addToCart(id, qty = 1, size = '', color = '') {
     const p = products.find(x => x.id === id);
     if (!p) return;
-    if (!size || !color) {
-        alert('Seleccione talla y color antes de añadir al carrito.');
-        return;
-    }
+
+    // Verificar si hay suficiente stock
     const availableStock = p.stock || 0;
     const existingInCart = cart.find(i => i.id === id && i.size === size && i.color === color);
     const currentQtyInCart = existingInCart ? existingInCart.qty : 0;
+
     if (currentQtyInCart + qty > availableStock) {
         alert(`En el momento solo quedan ${availableStock} unidades.`);
         return;
     }
-    if (existingInCart) existingInCart.qty += qty;
-    else cart.push({ id: p.id, name: p.name, price: p.price, qty, image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png', size, color });
+
+    if (existingInCart) {
+        existingInCart.qty += qty;
+    } else {
+        cart.push({
+            id: p.id,
+            name: p.name,
+            price: p.price,
+            qty,
+            image: p.image[0],
+            size,
+            color
+        });
+    }
+
     updateCart();
-    showAddToCartToast({ image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png', name: p.name, qty });
+
+    showAddToCartToast({
+        image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png',
+        name: p.name,
+        qty
+    });
 }
 
+/* Helper: escapar texto para evitar inyección en el toast */
 function escapeHtml(str) {
     if (!str) return '';
-    return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
+/* Helper: crea y anima el toast (se añade al body y se elimina tras el tiempo especificado) */
 function showAddToCartToast({ image, name, qty = 1 }) {
     const existing = document.getElementById('add-to-cart-toast');
-    if (existing) existing.remove();
+    if (existing) {
+        existing.remove();
+    }
+
     const toast = document.createElement('div');
     toast.id = 'add-to-cart-toast';
     toast.className = 'add-to-cart-toast';
+
     const safeName = escapeHtml(name);
-    toast.innerHTML = `<img src="${image}" alt="${safeName}" class="toast-img" loading="lazy" /><div class="toast-text"><div class="toast-title">${safeName}</div><div class="toast-sub">Añadido x${qty}</div></div>`;
+
+    toast.innerHTML = `
+      <img src="${image}" alt="${safeName}" class="toast-img" loading="lazy" />
+      <div class="toast-text">
+        <div class="toast-title">${safeName}</div>
+        <div class="toast-sub">Añadido x${qty}</div>
+      </div>
+    `;
+
     document.body.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
+
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
     const VISIBLE_MS = 2000;
     setTimeout(() => {
-        toast.classList.remove('show'); toast.classList.add('hide');
-        toast.addEventListener('transitionend', () => toast.remove(), { once: true });
+        toast.classList.remove('show');
+        toast.classList.add('hide');
+        toast.addEventListener('transitionend', () => {
+            toast.remove();
+        }, { once: true });
     }, VISIBLE_MS);
 }
 
-cartItemsContainer && cartItemsContainer.addEventListener('click', (e) => {
+cartItemsContainer.addEventListener('click', (e) => {
     const btn = e.target.closest('button[data-idx]');
     if (!btn) return;
     const idx = parseInt(btn.dataset.idx, 10);
     const op = btn.dataset.op;
+
     const productInCart = cart[idx];
-    if (!productInCart) return;
     const originalProduct = products.find(p => p.id === productInCart.id);
+
     if (op === 'inc') {
         if ((productInCart.qty + 1) > (originalProduct.stock || 0)) {
             alert(`En el momento solo quedan ${originalProduct.stock} unidades.`);
@@ -707,12 +789,12 @@ cartItemsContainer && cartItemsContainer.addEventListener('click', (e) => {
     updateCart();
 });
 
-cartBtn && cartBtn.addEventListener('click', () => {
+cartBtn.addEventListener('click', () => {
     showModal(cartModal);
     updateCart();
 });
 
-checkoutBtn && checkoutBtn.addEventListener('click', () => {
+checkoutBtn.addEventListener('click', () => {
     if (cart.length === 0) {
         alert('El carrito está vacío');
         return;
@@ -720,72 +802,115 @@ checkoutBtn && checkoutBtn.addEventListener('click', () => {
     showModal(checkoutModal);
 });
 
-finalizeBtn && finalizeBtn.addEventListener('click', () => {
+finalizeBtn.addEventListener('click', () => {
     const name = customerNameInput.value.trim();
     const address = customerAddressInput.value.trim();
     const payment = document.querySelector('input[name="payment"]:checked')?.value || '';
+    
     if (!termsConsentCheckbox.checked) {
         alert('Debes aceptar los Términos y Condiciones y la Política de Datos para continuar.');
         return;
     }
+
     if (!name || !address) {
         alert('Por favor completa nombre y dirección');
         return;
     }
-    orderDetails = { name, address, payment, items: [...cart], total: cart.reduce((acc, item) => acc + item.price * item.qty, 0) };
+
+    orderDetails = {
+        name,
+        address,
+        payment,
+        items: [...cart],
+        total: cart.reduce((acc, item) => acc + item.price * item.qty, 0)
+    };
+
     closeModal(checkoutModal);
     closeModal(cartModal);
     showOrderSuccessModal();
 });
 
 function showOrderSuccessModal() {
-    if (orderDetails.total) orderSuccessTotal.textContent = money(orderDetails.total);
+    if (orderDetails.total) {
+        orderSuccessTotal.textContent = money(orderDetails.total);
+    }
     showModal(orderSuccessModal);
 }
 
-// WhatsApp flow (kept)
-whatsappBtn && whatsappBtn.addEventListener('click', async () => {
-    if (Object.keys(orderDetails).length === 0) { alert('No hay detalles del pedido para enviar.'); return; }
-    if (!supabaseClient) { alert('El cliente no está inicializado. Inténtalo de nuevo.'); return; }
+whatsappBtn.addEventListener('click', async () => {
+    if (Object.keys(orderDetails).length === 0) {
+        alert('No hay detalles del pedido para enviar.');
+        return;
+    }
+
+    if (!supabaseClient) {
+        alert('El cliente no está inicializado. Inténtalo de nuevo.');
+        return;
+    }
+
     try {
         const { data: orderData, error: orderError } = await supabaseClient
             .from('orders')
             .insert([{
                 customer_name: orderDetails.name,
-                customer_address: orderDetails.address,
+                customer_address: orderDetails.address, 
                 payment_method: orderDetails.payment,
                 total_amount: orderDetails.total,
                 order_items: orderDetails.items,
                 order_status: 'Pendiente',
-            }]).select();
-        if (orderError) { console.error('Error DB:', orderError); alert('Error al guardar la orden en DB: ' + orderError.message); return; }
+            }])
+            .select();
 
+        if (orderError) {
+           
+            console.error('Error al guardar la orden en DB:', orderError);
+            alert('Error al guardar la orden en DB: ' + orderError.message);
+            return;
+        }
+        
         const response = await fetch('api/place-order', {
-            method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orderDetails, products })
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                orderDetails,
+                products 
+            })
         });
 
+        let result = {};
+        
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('API Route Falló:', response.status, errorText);
+            console.error('API Route Falló con status:', response.status, 'Respuesta:', errorText);
+        } else {
+             try {
+                result = await response.json();
+             } catch (e) {
+                 console.warn('Advertencia: El API Route devolvió una respuesta OK, pero no era JSON válido:', e.message);
+             }
         }
 
         const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)}.%0A%0A`;
+        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en $[...]
         orderDetails.items.forEach(item => {
-            message += `- ${encodeURIComponent(item.name)} (Talla: ${encodeURIComponent(item.size || '-')}, Color: ${encodeURIComponent(item.color || '-')}) x${item.qty} = $${money(item.price * item.qty)}%0A`;
+            message += `- ${encodeURIComponent(item.name)} x${item.qty} = $${money(item.price * item.qty)}%0A`;
         });
         message += `%0ATotal: $${money(orderDetails.total)}`;
         const link = `https://wa.me/${whatsappNumber}?text=${message}`;
         window.open(link, '_blank');
-
-        cart = []; orderDetails = {};
-        products = await fetchProductsFromSupabase();
+        
+        cart = []; 
+        orderDetails = {}; 
+        
+        products = await fetchProductsFromSupabase(); 
+        // render collage again
         renderCollage(products, 12);
-        showDefaultSections();
-        updateCart();
+        showDefaultSections(); 
+        updateCart(); 
         closeModal(orderSuccessModal);
 
     } catch (error) {
+        
         alert('Error al procesar el pedido: ' + error.message);
         console.error('Fallo en el pedido:', error);
     }
@@ -796,6 +921,7 @@ window.addEventListener('beforeinstallprompt', (e) => {
     deferredPrompt = e;
     installBanner.classList.add('visible');
 });
+
 installPromptBtn && installPromptBtn.addEventListener('click', async () => {
     if (!deferredPrompt) return;
     installBanner.classList.remove('visible');
@@ -803,50 +929,70 @@ installPromptBtn && installPromptBtn.addEventListener('click', async () => {
     await deferredPrompt.userChoice;
     deferredPrompt = null;
 });
+
 installCloseBtn && installCloseBtn.addEventListener('click', () => installBanner.classList.remove('visible'));
 
-// DB fetch
+// --- Funciones de DB ---
 const fetchProductsFromSupabase = async () => {
-    if (!supabaseClient) return [];
+    if (!supabaseClient) {
+        
+        return []; 
+    }
     try {
-        const { data, error } = await supabaseClient.from('products').select('*');
-        if (error) throw error;
+        const { data, error } = await supabaseClient
+            .from('products')
+            .select('*');
+        if (error) {
+            throw error;
+        }
         return data;
     } catch (err) {
         console.error('Error al cargar los productos:', err.message);
-        alert('Hubo un error al cargar los productos. Revisa la consola.');
+        alert('Hubo un error al cargar los productos. Por favor, revisa la consola para más detalles.');
         return [];
     }
 };
 
 const loadConfigAndInitSupabase = async () => {
     try {
+        
         const response = await fetch('api/get-config');
+        
         if (!response.ok) {
             const errorText = await response.text();
-            console.error('Error api/get-config:', errorText);
-            throw new Error(`Fallo al cargar la configuración: ${response.status}`);
+            console.error('Error del API Route api/get-config:', errorText);
+            throw new Error(`Fallo al cargar la configuración desde V: ${response.status} ${response.statusText}`);
         }
+        
         const config = await response.json();
-        if (!config.url || !config.anonKey) throw new Error("El API Route no retornó las claves de DB.");
-        SB_URL = config.url; SB_ANON_KEY = config.anonKey;
+        
+        if (!config.url || !config.anonKey) {
+             throw new Error("El API Route no retornó las claves de DB. Revisa las Variables de Entorno en Vercel.");
+        }
+
+        SB_URL = config.url;
+        SB_ANON_KEY = config.anonKey;
+
+        
         supabaseClient = createClient(SB_URL, SB_ANON_KEY);
+
         products = await fetchProductsFromSupabase();
         if (products.length > 0) {
+            // render collage between categories and featured
             renderCollage(products, 12);
             showDefaultSections();
             generateCategoryCarousel();
-        } else {
-            renderCollage([], 0);
         }
         updateCart();
     } catch (error) {
-        console.error('Error FATAL al iniciar la app:', error);
+        console.error('Error FATAL al iniciar la aplicación:', error);
+        
         const loadingMessage = document.createElement('div');
-        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;padding:20px;z-index:9999';
-        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles.';
+        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;[...]
+        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno en Vercel).';
         document.body.appendChild(loadingMessage);
     }
 };
+
 
 document.addEventListener('DOMContentLoaded', loadConfigAndInitSupabase);

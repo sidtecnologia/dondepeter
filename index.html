@@ -4,25 +4,89 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     
-    <title>Catalogo de Vestuario | Donde Peter</title>
-    <meta name="description" content="Catálogo de vestuario. Consulta y compra prendas directamente desde nuestra tienda." />
+    <!-- SEO Básico y Título -->
+    <title>Menú Digital | Comida Rápida en Bucaramanga</title>
+    <meta name="description" content="Consulta el menú digital de Comida Rápida. Pide las mejores hamburguesas, perros calientes y comida rápida en Bucaramanga. ¡Haz tu pedido a domicilio!">
+    <meta name="keywords" content="Comida Rápida, comida rápida bucaramanga, menú digital, hamburguesas, perros calientes, domicilio santander">
+
+    <!-- URL Canónica -->
+    <link rel="canonical" href="https://dondepeter.vercel.app/" />
+
+    <!-- SEO Open Graph (para WhatsApp, Facebook, etc.) -->
+    <meta property="og:title" content="Menú Digital Comida Rápida | Comida Rápida en Bucaramanga" />
+    <meta property="og:description" content="Pide las mejores hamburguesas, perros calientes y más. ¡Consulta nuestro menú y haz tu pedido a domicilio!" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dondepeter.vercel.app/" />
+    <meta property="og:image" content="https://dondepeter.vercel.app/img/favicon.png" />
+    <meta property="og:image:alt" content="Logo de Comida Rápida Comida Rápida" />
+
+    <!-- SEO Twitter Card -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Menú Digital Comida Rápida">
+    <meta name="twitter:description" content="Pide las mejores hamburguesas, perros calientes y más. ¡Consulta nuestro menú!">
+    <meta name="twitter:image" content="https://dondepeter.vercel.app/img/favicon.png">
+
+    <!-- PWA y Meta de Tema -->
     <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#721919" />
     <link rel="icon" href="https://dondepeter.vercel.app/img/favicon.png" />
     <link rel="apple-touch-icon" href="https://dondepeter.vercel.app/img/favicon.png">
+
+    <!-- Fuentes y Estilos Externos (Sin modificar) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+    
+    <!-- Scripts Externos (Sin modificar) -->
+    <script charset="UTF-8" src="//web.webpushs.com/js/push/1ed281446e2e741d69c9c9a386b5a047_1.js" async></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- JSON-LD (Structured Data) para SEO Local -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "name": "Donde Peter",
+      "image": "https://dondepeter.vercel.app/img/favicon.png",
+      "url": "https://dondepeter.vercel.app/",
+      "telephone": "+57-3227671829",
+      "servesCuisine": "Comida Rápida",
+      "priceRange": "$",
+      "menu": "https://dondepeter.vercel.app/",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Carrera 27 # 10-50",
+        "addressLocality": "Bucaramanga",
+        "addressRegion": "Santander",
+        "postalCode": "680001",
+        "addressCountry": "CO"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "17:00",
+          "closes": "23:00"
+        }
+      ]
+    }
+    </script>
 </head>
 <body>
     <div class="page-container">
 
         <nav class="navbar">
-            <div class="logo">
-                <img src="img/favicon.png" alt="Donde Peter" class="logo-img" />
-                <h1 class="logo-text">Donde Peter</h1>
-            </div>
+            <h1 class="logo">Comida Rápida</h1>
             <div class="search-container">
                 <input id="search-input" type="search" placeholder="Buscar producto, marca o categoría..." />
             </div>
@@ -31,6 +95,8 @@
                 <span id="cart-badge" class="cart-badge">0</span>
             </button>
         </nav>
+
+        <section class="main-carousel-wrapper">
 
         <section class="banner-section">
           <div class="banner-carousel" id="banner-carousel">
@@ -44,12 +110,24 @@
           <div class="banner-dots" id="banner-dots"></div>
         </section>
 
-        <div class="ticker-wrapper">
+        </nav> <div class="ticker-wrapper">
             <div class="ticker-text">
                  <span>Donde Peter APP</span>
-                 <span>Envío Gratis En Compras Superiores A $150.000 ✨</span>
-                 <span>Descuentos Del 20% En Productos Seleccionados</span>
-                 <span>Nuevos Productos Ya Disponibles 🚀</span>
+                <span>Envío Gratis En Compras Superiores A $150.000 ✨</span>
+                <span>Descuentos Del 20% En Productos Seleccionados solo En Nuestra App 🔥</span>
+                <span>Nuevos Productos Ya Disponibles 🚀</span>
+                 <span>Donde Peter APP</span>
+                <span>Descuentos Del 20% En Productos Seleccionados solo En Nuestra App 🔥</span>
+                <span>Nuevos Productos Ya Disponibles 🚀</span>
+                <span>Donde Peter APP 🚀</span>
+                 <span>Donde Peter APP</span>
+                <span>Envío Gratis En Compras Superiores A $150.000 ✨</span>
+                <span>Descuentos Del 20% En Productos Seleccionados solo En Nuestra App 🔥</span>
+                <span>Nuevos Productos Ya Disponibles 🚀</span>
+                 <span>Donde Peter APP</span>
+                <span>Descuentos Del 20% En Productos Seleccionados solo En Nuestra App 🔥</span>
+                <span>Nuevos Productos Ya Disponibles 🚀</span>
+                <span>Donde Peter APP 🚀</span>
             </div>
         </div>
 
@@ -59,7 +137,7 @@
             </div>
         </nav>
 
-        <!-- COLLAGE: colocado justo después de categorías y antes de destacados -->
+        <!-- COLLAGE: colocado aquí (entre categorías y destacados) -->
         <section id="collage-section" class="collage-section">
             <div id="collage-grid" class="collage-grid" aria-hidden="false"></div>
         </section>
@@ -79,7 +157,7 @@
 
             <section id="ads-section" class="ads-section">
             <div class="ads-grid">
-                <img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/favicon.png" alt="Publicidad" class="ad-image" />
+                <img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/favicon.png" alt="Publicidad 2"class="ad-image" data-product-id="728b36cf-6b4d-4f50-8c99-c[...]
             </div>
             </section>
 
@@ -103,6 +181,7 @@
                         <p id="modal-product-description"></p>
                         <p id="modal-product-price" class="price"></p>
 
+                        <!-- Ahora tallas y colores como botones -->
                         <div class="form-group">
                           <label>Talla (obligatorio)</label>
                           <div id="size-options" class="options-row" role="group" aria-label="Tallas disponibles"></div>
@@ -173,9 +252,9 @@
           <div class="modal-content-wrapper">
             <div class="success-modal-card">
               <button class="modal-close close-success-btn">&times;</button>
-              <h2>¡Tu pedido está casi listo!</h2>
+              <h2>¡Tu comida está casi lista!</h2>
               <p id="order-success-description"></p>
-              <p>Solo falta confirmar el pago.</p>
+              <p>Tu pedido se está preparando. Solo falta confirmar el pago y saldrá para tu dirección.</p>
               <p><strong>Total:</strong> $<span id="order-success-total"></span></p>
               <p>Gracias por tu compra.</p>
               <button id="whatsapp-btn" class="checkout-btn"><i class="fab fa-whatsapp"></i> Confirmar pago</button>
