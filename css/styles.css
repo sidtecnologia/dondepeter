@@ -277,6 +277,7 @@ body {
   display: flex;
   flex-direction: column;
   cursor: default;
+  height: 100%;
 }
 
 .product-image {
@@ -291,6 +292,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
 
 .product-name {
@@ -301,13 +303,19 @@ body {
 .product-description {
   font-size: .86rem;
   color: #666;
-  flex: 1;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* show at most 3 lines */
+  -webkit-box-orient: vertical;
+  line-height: 1.15rem;
 }
 
+/* ensure price is positioned at the bottom */
 .product-price {
   font-weight: 700;
   color: var(--accent);
   font-size: 1rem;
+  margin-top: auto; /* push price to bottom of product-info */
 }
 
 .modal-close {
@@ -938,7 +946,6 @@ body {
 
 /* ======================
    Ajustes específicos para COLLAGE y botones de tallas/colores
-   (añadidos sin modificar el resto del CSS original)
    ====================== */
 
 /* Collage: área cuadrada que contiene un grid "mosaic" */
@@ -1034,7 +1041,3 @@ body {
 .modal-required-hint.show {
   display: block;
 }
-
-/* Small adjustments so price remains visually at the bottom */
-.product-info { display:flex; flex-direction:column; gap:6px; }
-.product-description { flex:1; } /* mantiene precio abajo */
