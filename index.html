@@ -67,26 +67,19 @@
     </script>
 </head>
 <body>
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="spinner"></div>
-        <p>Cargando menú...</p>
-    </div>
-
     <div class="page-container">
-
         <nav class="navbar">
             <h1 class="logo">Comida Rápida</h1>
             <div class="search-container">
                 <input id="search-input" type="search" placeholder="Buscar producto, marca o categoría..." />
             </div>
-            <button id="cart-btn" class="nav-cart-btn">
-                <i class="fas fa-shopping-cart"></i>
+            <button id="cart-btn" class="nav-cart-btn" aria-label="Abrir carrito">
+                <i class="fas fa-shopping-cart" aria-hidden="true"></i>
                 <span id="cart-badge" class="cart-badge">0</span>
             </button>
         </nav>
 
         <section class="main-carousel-wrapper">
-
         <section class="banner-section">
           <div class="banner-carousel" id="banner-carousel">
             <div class="banner-slide"><img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp" alt="Promoción 1"></div>
@@ -98,8 +91,9 @@
           </div>
           <div class="banner-dots" id="banner-dots"></div>
         </section>
+        </section>
 
-        </nav> <div class="ticker-wrapper">
+        <div class="ticker-wrapper">
             <div class="ticker-text">
                  <span>Donde Peter APP</span>
                 <span>Envío Gratis En Compras Superiores A $150.000 ✨</span>
@@ -154,16 +148,14 @@
         <div id="productModal" class="modal" aria-hidden="true">
             <div class="modal-content-wrapper">
                 <div class="modal-card">
-                    <button class="modal-close close-button" aria-label="Cerrar"><i class="fas fa-times"></i></button>
-                    <div class="carousel-container">
-                        <button id="prev-btn" class="carousel-btn prev-btn"><i class="fas fa-circle-arrow-left"></i></button>
-                        <div id="carousel-images-container" class="carousel-images-container"></div>
-                        <button id="next-btn" class="carousel-btn next-btn"><i class="fas fa-circle-arrow-right"></i></button>
+                    <button class="modal-close close-button" aria-label="Cerrar">&times;</button>
+                    <div class="carousel-container" aria-live="polite">
+                        <button id="prev-btn" class="carousel-btn prev-btn" aria-label="Anterior"><i class="fas fa-circle-arrow-left"></i></button>
+                        <div id="carousel-images-container" class="carousel-images-container" role="list"></div>
+                        <button id="next-btn" class="carousel-btn next-btn" aria-label="Siguiente"><i class="fas fa-circle-arrow-right"></i></button>
                     </div>
-                    <div id="image-modal-caption" class="modal-caption">
-                        <p id="zoom-message" style="text-align:center; font-size:0.8rem; color:#888; margin-bottom:5px;">
-                            <i class="fas fa-search-plus"></i> Presiona la imagen para ampliar
-                        </p>
+                    <div class="modal-caption">
+                        <div class="image-tip">Toca la imagen para ampliar</div>
                         <h3 id="modal-product-name"></h3>
                         <p id="modal-product-description"></p>
                         <p id="modal-product-price" class="price"></p>
@@ -180,7 +172,7 @@
         <div id="cartModal" class="modal" aria-hidden="true">
             <div class="modal-content-wrapper">
                 <div class="cart-modal-card">
-                    <button class="modal-close close-cart-btn" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+                    <button class="modal-close close-cart-btn" aria-label="Cerrar">&times;</button>
                     <h3>Tu pedido</h3>
                     <div id="cart-items" class="cart-items"></div>
                     <div class="cart-summary">
@@ -191,10 +183,39 @@
             </div>
         </div>
 
-        <div id="successModal" class="modal" aria-hidden="true">
+        <div id="checkoutModal" class="modal" aria-hidden="true">
+          <div class="modal-content-wrapper">
+            <div class="checkout-modal-card">
+              <button class="modal-close close-checkout-btn" aria-label="Cerrar">&times;</button>
+              <h2>Datos de entrega</h2>
+              <div class="form-group">
+                <label for="customer-name">Nombre:</label>
+                <input type="text" id="customer-name" placeholder="Tu nombre" required>
+              </div>
+              <div class="form-group">
+                <label for="customer-address">Dirección:</label>
+                <input type="text" id="customer-address" placeholder="Tu dirección de entrega" required>
+              </div>
+              <label>Método de pago:</label>
+              <div>
+                  <label><input type="radio" name="payment" value="Efectivo" checked> Efectivo</label>
+                  <label><input type="radio" name="payment" value="Transferencia"> Transferencia</label>
+              </div>
+              <div class="terms-consent">
+                  <input type="checkbox" id="terms-consent-checkbox" required>
+                  <label for="terms-consent-checkbox">
+                      Acepto los <a href="./privacy/index.html" target="_blank">Términos y Condiciones de Tratamiento de Datos</a>
+                  </label>
+              </div>
+              <button id="finalize-btn" class="checkout-btn">Continuar</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="orderSuccessModal" class="modal" aria-hidden="true">
           <div class="modal-content-wrapper">
             <div class="success-modal-card">
-              <button class="modal-close close-success-btn" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+              <button class="modal-close close-success-btn" aria-label="Cerrar">&times;</button>
               <h2>¡Tu comida está casi lista!</h2>
               <p id="order-success-description"></p>
               <p>Tu pedido se está preparando. Solo falta confirmar el pago y saldrá para tu dirección.</p>
@@ -204,12 +225,6 @@
               <button id="close-success-btn" class="add-to-cart-btn" style="background:#666">Regresar</button>
             </div>
           </div>
-        </div>
-
-        <!-- Nuevo Modal para Zoom de Imagen -->
-        <div id="image-zoom-overlay" class="image-zoom-overlay" aria-hidden="true" style="display: none;">
-            <button class="zoom-close" aria-label="Cerrar imagen"><i class="fas fa-times"></i></button>
-            <img id="image-zoom-img" class="image-zoom-img" src="" alt="Imagen en grande" />
         </div>
 
         <footer class="footer-menu">
@@ -223,6 +238,21 @@
             <button id="install-close-btn">No</button>
             <button id="install-prompt-btn" class="install-btn">Instalar</button>
         </div>
+    </div>
+
+    <div id="loading-overlay" class="loading-overlay" aria-hidden="false">
+      <div class="loading-card">
+        <div class="spinner" role="status" aria-hidden="true"><span></span></div>
+        <div class="loading-text">Cargando...</div>
+      </div>
+    </div>
+
+    <div id="imageZoomOverlay" class="image-zoom-overlay" aria-hidden="true">
+      <div class="image-zoom-wrapper">
+        <button class="zoom-close" aria-label="Cerrar">&times;</button>
+        <img id="imageZoomImg" src="" alt="Imagen ampliada">
+        <div class="zoom-hint">Toca la imagen o la X para cerrar</div>
+      </div>
     </div>
 
     <script>
