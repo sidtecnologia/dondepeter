@@ -31,6 +31,77 @@ body {
   padding-top: 59px;
 }
 
+/* Loading overlay */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity .2s ease;
+}
+.loading-card {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: transparent;
+  border-radius: 10px;
+  padding: 12px 18px;
+}
+.spinner {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: 5px solid rgba(0,0,0,0.08);
+  border-top-color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+.loading-text {
+  font-weight: 700;
+  color: var(--primary);
+  font-size: 1rem;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Image zoom overlay */
+.image-zoom-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1200;
+  flex-direction: column;
+  padding: 14px;
+}
+.image-zoom-overlay img {
+  max-width: 95%;
+  max-height: 85%;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.6);
+}
+.image-zoom-overlay .zoom-hint-text {
+  color: rgba(255,255,255,0.85);
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+.image-zoom-overlay .zoom-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 34px;
+  cursor: pointer;
+}
+
 /* Main Container */
 .page-container {
   max-width: 1100px;
@@ -277,8 +348,40 @@ body {
   display: flex;
   flex-direction: column;
   cursor: default;
+  position: relative;
+  min-height: 300px; /* ayuda a mantener tamaño consistente */
 }
 
+/* Asegurar que la info se comporte en columna y que el precio quede abajo */
+.product-info {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+/* Descripción limitada a 3 líneas con puntos suspensivos */
+.product-description {
+  font-size: .86rem;
+  color: #666;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2rem;
+}
+
+/* Forzar que el precio quede al fondo de la tarjeta */
+.product-price {
+  font-weight: 700;
+  color: var(--accent);
+  font-size: 1rem;
+  margin-top: auto; /* empuja al fondo */
+}
+
+/* Mantener la imagen en la parte superior */
 .product-image {
   width: 100%;
   height: 160px;
@@ -286,30 +389,7 @@ body {
   cursor: pointer;
 }
 
-.product-info {
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.product-name {
-  color: var(--primary);
-  font-size: 0.98rem;
-}
-
-.product-description {
-  font-size: .86rem;
-  color: #666;
-  flex: 1;
-}
-
-.product-price {
-  font-weight: 700;
-  color: var(--accent);
-  font-size: 1rem;
-}
-
+/* Mantener el footer del modal bajo el contenido */
 .modal-close {
   position: absolute;
   top: 1px;
@@ -342,6 +422,7 @@ body {
   min-width: 100%;
   height: 100%;
   object-fit: cover;
+  cursor: zoom-in;
 }
 
 .carousel-btn {
@@ -370,27 +451,10 @@ body {
   text-align: center;
 }
 
-.price {
-  font-size: 1.1rem;
-  margin: 6px 0;
-  font-weight: 800;
-  color: var(--accent);
-}
-
-.qty-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: center;
-  margin: 8px 0;
-}
-
-.qty-row input {
-  width: 72px;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #ddd;
-  text-align: center;
+.modal-zoom-hint {
+  font-size: 0.9rem;
+  color: #444;
+  margin: 8px 0 0 0;
 }
 
 /* Buttons */

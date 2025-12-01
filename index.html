@@ -83,6 +83,21 @@
     </script>
 </head>
 <body>
+    <!-- Loading overlay: se muestra mientras la app se inicializa -->
+    <div id="loading-overlay" class="loading-overlay" aria-hidden="false">
+      <div class="loading-card" role="status" aria-live="polite">
+        <div class="spinner" aria-hidden="true"></div>
+        <div class="loading-text">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- Image zoom overlay para ampliar la imagen del modal -->
+    <div id="imageZoomOverlay" class="image-zoom-overlay" aria-hidden="true">
+      <button class="modal-close zoom-close" aria-label="Cerrar imagen">&times;</button>
+      <img id="imageZoomImg" src="" alt="Imagen ampliada" />
+      <div class="zoom-hint-text">Toca la imagen o pulsa Esc para cerrar</div>
+    </div>
+
     <div class="page-container">
 
         <nav class="navbar">
@@ -152,7 +167,7 @@
 
             <section id="ads-section" class="ads-section">
             <div class="ads-grid">
-                <img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/favicon.png" alt="Publicidad 2"class="ad-image" data-product-id="728b36cf-6b4d-4f50-8c99-ccde786cf031">
+                <img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/favicon.png" alt="Publicidad 2"class="ad-image" data-product-id="728b36cf-6b4d-4f50-8c99-c[...]
             </div>
             </section>
 
@@ -175,6 +190,7 @@
                         <h3 id="modal-product-name"></h3>
                         <p id="modal-product-description"></p>
                         <p id="modal-product-price" class="price"></p>
+                        <div class="modal-zoom-hint">Toca la imagen para ampliar</div>
                         <div class="qty-row">
                             <label for="qty-input">Cantidad</label>
                             <input id="qty-input" type="number" min="1" value="1" />

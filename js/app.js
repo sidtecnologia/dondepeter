@@ -2,10 +2,10 @@
  * @license
  * Copyright © 2025 Tecnología y Soluciones Informáticas. Todos los derechos reservados.
  *
- * DONDE PETER PWA
+ * Comida Rápida PWA
  *
  * Este software es propiedad confidencial y exclusiva de TECSIN.
- * El permiso de uso de este software es temporal para pruebas en Donde Peter.
+ * El permiso de uso de este software es temporal para pruebas en Comida Rápida.
  *
  * Queda estrictamente prohibida la copia, modificación, distribución,
  * ingeniería inversa o cualquier otro uso no autorizado de este código
@@ -68,6 +68,10 @@ const whatsappBtn = document.getElementById('whatsapp-btn');
 const closeSuccessBtn = document.getElementById('close-success-btn');
 const termsConsentCheckbox = document.getElementById('terms-consent-checkbox');
 
+const loadingOverlay = document.getElementById('loading-overlay');
+const imageZoomOverlay = document.getElementById('imageZoomOverlay');
+const imageZoomImg = document.getElementById('imageZoomImg');
+const zoomCloseBtn = imageZoomOverlay && imageZoomOverlay.querySelector('.zoom-close');
 
 // --- Funciones de Ayuda ---
 const money = (v) => {
@@ -486,9 +490,11 @@ function closeModal(modal) {
     });
 });
 
-closeSuccessBtn.addEventListener('click', () => {
+if (closeSuccessBtn) {
+  closeSuccessBtn.addEventListener('click', () => {
     closeModal(orderSuccessModal);
-});
+  });
+}
 
 function openProductModal(id) {
     const product = products.find(p => p.id === id);
@@ -521,6 +527,7 @@ function updateCarousel(images) {
         const img = document.createElement('img');
         img.src = src;
         img.className = 'carousel-image';
+        img.loading = 'lazy';
         carouselImagesContainer.appendChild(img);
     });
     currentImageIndex = 0;
@@ -562,7 +569,7 @@ function updateCart() {
         totalItems += item.qty;
         const div = document.createElement('div');
         div.className = 'cart-item';
-        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><strong>${item.name}</strong><div style="font-size:.9rem;color:#666">${item.qty} x $${money(item.price)}</div></div></div><div class="controls"><button class="qty-btn" data-idx="${idx}" data-op="dec">-</button><button class="qty-btn" data-idx="${idx}" data-op="inc">+</button></div>`;
+        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><stro[...]
         cartItemsContainer.appendChild(div);
     });
     cartBadge.style.display = 'flex';
@@ -788,7 +795,7 @@ whatsappBtn.addEventListener('click', async () => {
 
         // 3. Enviar mensaje de WhatsApp
         const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en ${encodeURIComponent(orderDetails.payment)}.%0A%0A--- Mi pedido es: ---%0A`;
+        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en $[...]
         orderDetails.items.forEach(item => {
             message += `- ${encodeURIComponent(item.name)} x${item.qty} = $${money(item.price * item.qty)}%0A`;
         });
@@ -876,17 +883,85 @@ const loadConfigAndInitSupabase = async () => {
         if (products.length > 0) {
             showDefaultSections();
             generateCategoryCarousel();
+            // Mostrar pistas táctiles en las tarjetas destacadas
+            try {
+              showImageHints(featuredContainer);
+              enableTouchHints();
+            } catch(e) {}
+        } else {
+            // Si no hay productos, aún limpiar la pantalla de carga
         }
         updateCart();
+
+        // Ocultar overlay de carga una vez que la app haya inicializado
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+            loadingOverlay.setAttribute('aria-hidden', 'true');
+        }
     } catch (error) {
         console.error('Error FATAL al iniciar la aplicación:', error);
         
+        // Ocultar overlay de carga y mostrar mensaje de error persistente
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'none';
+            loadingOverlay.setAttribute('aria-hidden', 'true');
+        }
+
         const loadingMessage = document.createElement('div');
-        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;padding:20px;z-index:9999;';
+        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;padding:24px;z-index:9999';
         loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno en Vercel).';
         document.body.appendChild(loadingMessage);
     }
 };
 
 
+// CERRAR OVERLAY ZOOM CON ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    if (imageZoomOverlay && imageZoomOverlay.style.display === 'flex') {
+      imageZoomOverlay.style.display = 'none';
+      imageZoomOverlay.setAttribute('aria-hidden', 'true');
+      imageZoomImg.src = '';
+    }
+  }
+});
+
+// Manejo de zoom: al hacer click en una imagen del carousel abrimos overlay con la imagen en grande
+carouselImagesContainer && carouselImagesContainer.addEventListener('click', (e) => {
+  const img = e.target.closest('.carousel-image');
+  if (!img) return;
+  if (!imageZoomOverlay) return;
+  imageZoomImg.src = img.src || img.getAttribute('src');
+  imageZoomOverlay.style.display = 'flex';
+  imageZoomOverlay.setAttribute('aria-hidden', 'false');
+});
+
+// Cerrar overlay imagen al hacer click afuera de la imagen o en el botón X
+if (imageZoomOverlay) {
+  imageZoomOverlay.addEventListener('click', (e) => {
+    // si clic en background o en close button -> cerrar
+    if (e.target === imageZoomOverlay || e.target.classList.contains('zoom-close')) {
+      imageZoomOverlay.style.display = 'none';
+      imageZoomOverlay.setAttribute('aria-hidden', 'true');
+      imageZoomImg.src = '';
+    }
+  });
+
+  if (zoomCloseBtn) {
+    zoomCloseBtn.addEventListener('click', () => {
+      imageZoomOverlay.style.display = 'none';
+      imageZoomOverlay.setAttribute('aria-hidden', 'true');
+      imageZoomImg.src = '';
+    });
+  }
+
+  // Si el usuario hace click sobre la imagen también cerramos (toque para cerrar)
+  imageZoomImg && imageZoomImg.addEventListener('click', () => {
+    imageZoomOverlay.style.display = 'none';
+    imageZoomOverlay.setAttribute('aria-hidden', 'true');
+    imageZoomImg.src = '';
+  });
+}
+
+// --- Mantener la compatibilidad con el resto de la lógica existente ---
 document.addEventListener('DOMContentLoaded', loadConfigAndInitSupabase);
