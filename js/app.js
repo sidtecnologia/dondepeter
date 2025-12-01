@@ -1,26 +1,9 @@
-/**
- * @license
- * Copyright © 2025 Tecnología y Soluciones Informáticas. Todos los derechos reservados.
- *
- * Comida Rápida PWA
- *
- * Este software es propiedad confidencial y exclusiva de TECSIN.
- * El permiso de uso de este software es temporal para pruebas en Comida Rápida.
- *
- * Queda estrictamente prohibida la copia, modificación, distribución,
- * ingeniería inversa o cualquier otro uso no autorizado de este código
- * sin el consentimiento explícito por escrito del autor.
- *
- * Para más información, contactar a: sidsoporte@proton.me
- */
-
 const { createClient } = supabase;
 
 let SB_URL = null;
 let SB_ANON_KEY = null;
 let supabaseClient = null;
 
-// --- Variables de estado ---
 let cart = [];
 let products = [];
 let currentImageIndex = 0;
@@ -29,7 +12,7 @@ let deferredPrompt = null;
 const PRODUCTS_PER_PAGE = 25;
 let orderDetails = {};
 
-// --- Referencias del DOM ---
+const loadingOverlay = document.getElementById('loading-overlay');
 const featuredContainer = document.getElementById('featured-grid');
 const offersGrid = document.getElementById('offers-grid');
 const allFilteredContainer = document.getElementById('all-filtered-products');
@@ -40,914 +23,601 @@ const noProductsMessage = document.getElementById('no-products-message');
 const searchInput = document.getElementById('search-input');
 const searchResultsTitle = document.getElementById('search-results-title');
 const categoryCarousel = document.getElementById('category-carousel');
+const bannerCarousel = document.getElementById('banner-carousel');
+const bannerDotsContainer = document.getElementById('banner-dots');
 const productModal = document.getElementById('productModal');
-const modalProductName = document.getElementById('modal-product-name');
-const modalProductDescription = document.getElementById('modal-product-description');
-const modalProductPrice = document.getElementById('modal-product-price');
-const modalAddToCartBtn = document.getElementById('modal-add-to-cart-btn');
-const qtyInput = document.getElementById('qty-input');
+const modalCloseBtn = productModal ? productModal.querySelector('.close-button') : null;
+const cartModal = document.getElementById('cartModal');
+const cartBtn = document.getElementById('cart-btn');
+const closeCartBtn = cartModal ? cartModal.querySelector('.close-cart-btn') : null;
+const cartBadge = document.getElementById('cart-badge');
+const cartItemsContainer = document.getElementById('cart-items');
+const cartTotalSpan = document.getElementById('cart-total');
+const checkoutBtn = document.getElementById('checkout-btn');
 const carouselImagesContainer = document.getElementById('carousel-images-container');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
-const cartBtn = document.getElementById('cart-btn');
-const cartBadge = document.getElementById('cart-badge');
-const cartModal = document.getElementById('cartModal');
-const cartItemsContainer = document.getElementById('cart-items');
-const cartTotalElement = document.getElementById('cart-total');
-const checkoutBtn = document.getElementById('checkout-btn');
-const checkoutModal = document.getElementById('checkoutModal');
-const customerNameInput = document.getElementById('customer-name');
-const customerAddressInput = document.getElementById('customer-address');
-const finalizeBtn = document.getElementById('finalize-btn');
+const modalProductName = document.getElementById('modal-product-name');
+const modalProductDescription = document.getElementById('modal-product-description');
+const modalProductPrice = document.getElementById('modal-product-price');
+const qtyInput = document.getElementById('qty-input');
+const modalAddToCartBtn = document.getElementById('modal-add-to-cart-btn');
 const installBanner = document.getElementById('install-banner');
-const installCloseBtn = document.getElementById('install-close-btn');
 const installPromptBtn = document.getElementById('install-prompt-btn');
-const orderSuccessModal = document.getElementById('orderSuccessModal');
+const installCloseBtn = document.getElementById('install-close-btn');
+const successModal = document.getElementById('successModal');
+const closeSuccessBtn = document.querySelectorAll('.close-success-btn');
 const orderSuccessTotal = document.getElementById('order-success-total');
+const orderSuccessDescription = document.getElementById('order-success-description');
 const whatsappBtn = document.getElementById('whatsapp-btn');
-const closeSuccessBtn = document.getElementById('close-success-btn');
-const termsConsentCheckbox = document.getElementById('terms-consent-checkbox');
+const closeSuccessFinalBtn = document.getElementById('close-success-btn');
+const imageZoomOverlay = document.getElementById('image-zoom-overlay');
+const imageZoomImg = document.getElementById('image-zoom-img');
+const zoomCloseBtn = imageZoomOverlay ? imageZoomOverlay.querySelector('.zoom-close') : null;
 
-const loadingOverlay = document.getElementById('loading-overlay');
-const imageZoomOverlay = document.getElementById('imageZoomOverlay');
-const imageZoomImg = document.getElementById('imageZoomImg');
-const zoomCloseBtn = document.getElementById('zoom-close-btn');
-
-// --- Funciones de Ayuda ---
-const money = (v) => {
-    const value = Math.floor(v);
-    return value.toLocaleString('es-CO');
+// --- Funciones de Utilidad ---
+const showLoading = () => {
+    loadingOverlay.classList.remove('hidden');
 };
 
-const shuffleArray = (array) => {
-    for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
+const hideLoading = () => {
+    loadingOverlay.classList.add('hidden');
 };
 
-// --- Lógica del carrusel de banner ---
-const bannerCarousel = document.getElementById('banner-carousel');
-const bannerDots = document.getElementById('banner-dots');
-if (bannerCarousel) {
-    const slides = document.querySelectorAll('.banner-slide');
-    let currentBanner = 0;
-    let bannerInterval;
-    const firstSlideClone = slides[0].cloneNode(true);
-    const lastSlideClone = slides[slides.length - 1].cloneNode(true);
-    bannerCarousel.appendChild(firstSlideClone);
-    bannerCarousel.insertBefore(lastSlideClone, slides[0]);
-    currentBanner = 1;
-    bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
-    slides.forEach((_, idx) => {
-        const dot = document.createElement('div');
-        dot.classList.add('banner-dot');
-        if (idx === 0) dot.classList.add('active');
-        dot.addEventListener('click', () => goToSlide(idx + 1));
-        bannerDots.appendChild(dot);
-    });
+const formatPrice = (price) => {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0
+    }).format(price);
+};
 
-    function updateBanner() {
-        bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
-        const dotIndex = (currentBanner - 1 + slides.length) % slides.length;
-        document.querySelectorAll('.banner-dot').forEach((dot, idx) => {
-            dot.classList.toggle('active', idx === dotIndex);
-        });
+const truncateDescription = (text, maxLines = 3) => {
+    const lines = text.split('\n');
+    if (lines.length > maxLines) {
+        return lines.slice(0, maxLines).join('\n') + '...';
     }
 
-    function goToSlide(idx) {
-        currentBanner = idx;
-        updateBanner();
-        resetInterval();
-    }
+    const tempDiv = document.createElement('div');
+    tempDiv.style.visibility = 'hidden';
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.height = 'auto';
+    tempDiv.style.width = '250px';
+    tempDiv.style.fontSize = '0.9rem';
+    tempDiv.style.lineHeight = '1.4';
+    tempDiv.style.whiteSpace = 'pre-wrap';
+    tempDiv.textContent = text;
+    document.body.appendChild(tempDiv);
 
-    function nextBanner() {
-        currentBanner++;
-        updateBanner();
-        if (currentBanner >= slides.length + 1) {
-            setTimeout(() => {
-                bannerCarousel.style.transition = 'none';
-                currentBanner = 1;
-                bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
-                setTimeout(() => {
-                    bannerCarousel.style.transition = 'transform 0.5s ease';
-                }, 50);
-            }, 500);
+    const lineHeight = parseFloat(getComputedStyle(tempDiv).lineHeight);
+    const maxHeight = lineHeight * maxLines;
+
+    if (tempDiv.offsetHeight > maxHeight) {
+        let truncated = text;
+        while (tempDiv.offsetHeight > maxHeight && truncated.length > 0) {
+            truncated = truncated.slice(0, -1);
+            tempDiv.textContent = truncated + '...';
         }
+        document.body.removeChild(tempDiv);
+        return truncated.slice(0, -3).trim() + '...';
     }
 
-    function resetInterval() {
-        clearInterval(bannerInterval);
-        bannerInterval = setInterval(nextBanner, 4000);
-    }
-    let startX = 0;
-    bannerCarousel.addEventListener('touchstart', e => {
-        startX = e.touches[0].clientX;
-    });
-    bannerCarousel.addEventListener('touchend', e => {
-        let endX = e.changedTouches[0].clientX;
-        if (endX - startX > 50) {
-            currentBanner = (currentBanner - 1);
-            updateBanner();
-            resetInterval();
-        } else if (startX - endX > 50) {
-            nextBanner();
-            resetInterval();
-        }
-    });
-    let isDown = false,
-        startXMouse;
-    bannerCarousel.addEventListener('mousedown', e => {
-        isDown = true;
-        startXMouse = e.pageX;
-    });
-    bannerCarousel.addEventListener('mouseup', e => {
-        if (!isDown) return;
-        let diff = e.pageX - startXMouse;
-        if (diff > 50) {
-            currentBanner = (currentBanner - 1);
-            updateBanner();
-        } else if (diff < -50) {
-            nextBanner();
-        }
-        isDown = false;
-        resetInterval();
-    });
-    resetInterval();
-}
-
-// --- Funciones para renderizar productos ---
-const generateProductCard = (p) => {
-    let bestSellerTag = '';
-    if (p.bestSeller) {
-        bestSellerTag = `<div class="best-seller-tag">Lo más vendido</div>`;
-    }
-
-    let stockOverlay = '';
-    let stockClass = '';
-    if (!p.stock || p.stock <= 0) {
-        stockOverlay = `<div class="out-of-stock-overlay">Agotado</div>`;
-        stockClass = ' out-of-stock';
-    }
-
-    return `
-      <div class="product-card${stockClass}" data-product-id="${p.id}">
-        ${bestSellerTag}
-        <div class="image-wrap">
-          <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
-          <div class="image-hint" aria-hidden="true">
-            <i class="fas fa-hand-point-up" aria-hidden="true"></i>
-            <span>Presiona para ver</span>
-          </div>
-        </div>
-        ${stockOverlay}
-        <div class="product-info">
-          <div>
-            <div class="product-name">${p.name}</div>
-            <div class="product-description">${p.description}</div>
-          </div>
-          <div style="margin-top:8px">
-            <div class="product-price">$${money(p.price)}</div>
-          </div>
-        </div>
-      </div>
-    `;
+    document.body.removeChild(tempDiv);
+    return text;
 };
 
 
-// --- Renderizado con paginación ---
-function renderProducts(container, data, page = 1, perPage = 20, withPagination = false) {
+// --- Funciones de Renderizado ---
+const createProductCard = (product) => {
+    const card = document.createElement('div');
+    card.className = 'product-card';
+    card.dataset.id = product.id;
+
+    const imageContainer = document.createElement('div');
+    imageContainer.className = 'product-image-container';
+
+    const img = document.createElement('img');
+    img.src = product.images[0]?.url || 'https://via.placeholder.com/400x300?text=Sin+Imagen';
+    img.alt = product.name;
+    imageContainer.appendChild(img);
+
+    const info = document.createElement('div');
+    info.className = 'product-info';
+
+    const name = document.createElement('h3');
+    name.textContent = product.name;
+
+    // Usar la clase para truncamiento a 3 líneas
+    const descriptionShort = document.createElement('p');
+    descriptionShort.className = 'product-description-short';
+    descriptionShort.textContent = product.description;
+
+    info.appendChild(name);
+    info.appendChild(descriptionShort);
+
+    // Precio fijo en la parte inferior
+    const priceFixed = document.createElement('div');
+    priceFixed.className = 'product-price-fixed';
+    priceFixed.innerHTML = `Precio: <span class="price">${formatPrice(product.price)}</span>`;
+
+    card.appendChild(imageContainer);
+    card.appendChild(info);
+    card.appendChild(priceFixed);
+
+    card.addEventListener('click', () => openProductModal(product.id));
+    return card;
+};
+
+const renderProducts = (productsToRender, container) => {
     container.innerHTML = '';
-    const paginationContainer = document.getElementById('pagination-container');
-    if (!data || data.length === 0) {
-        if (noProductsMessage) noProductsMessage.style.display = 'block';
-        if (paginationContainer) paginationContainer.innerHTML = '';
+    if (!productsToRender || productsToRender.length === 0) {
+        container.innerHTML = '<p class="empty-cart-msg">No hay productos disponibles.</p>';
         return;
     }
-    if (noProductsMessage) noProductsMessage.style.display = 'none';
-    const totalPages = Math.ceil(data.length / perPage);
-    const start = (page - 1) * perPage;
-    const end = start + perPage;
-    const currentProducts = data.slice(start, end);
-    currentProducts.forEach(p => container.innerHTML += generateProductCard(p));
-    if (withPagination && totalPages > 1) {
-        renderPagination(page, totalPages, data, perPage);
-    } else {
-        if (paginationContainer) paginationContainer.innerHTML = '';
-    }
-}
+    productsToRender.forEach(product => {
+        container.appendChild(createProductCard(product));
+    });
+};
 
-function showImageHints(container) {
-    // Mostrar el hint de forma temporal en las primeras tarjetas (para indicar acción)
-    try {
-        const hints = container.querySelectorAll('.image-hint');
-        // Mostrar en las primeras 6 tarjetas o las que haya
-        const max = Math.min(6, hints.length);
-        for (let i = 0; i < max; i++) {
-            const h = hints[i];
-            // añadir clase que dispara la animación/fade
-            h.classList.add('show-hint');
-            // animar con pequeño delay escalonado para efecto cascada
-            h.style.transitionDelay = `${i * 120}ms`;
-        }
-        // quitar la clase después de X ms (por ejemplo 2200ms)
-        setTimeout(() => {
-            for (let i = 0; i < max; i++) {
-                const h = hints[i];
-                if (h) {
-                    h.classList.remove('show-hint');
-                    h.style.transitionDelay = '';
-                }
-            }
-        }, 2200);
-    } catch (err) {
-        // no bloquear si falla
-        console.warn('showImageHints err', err);
-    }
-}
+const createCategoryItem = (category) => {
+    const item = document.createElement('div');
+    item.className = 'category-item';
+    item.dataset.category = category.id;
 
-function enableTouchHints() {
-  let lastTouchedCard = null;
-  let lastTouchMoved = false;
+    const img = document.createElement('img');
+    img.src = category.icon_url || 'https://via.placeholder.com/50';
+    img.alt = category.name;
 
-  // Mostrar hint al tocar una tarjeta (touchstart)
-  function onTouchStart(e) {
-    lastTouchMoved = false;
-    const card = e.target.closest('.product-card');
-    if (!card) return;
+    const name = document.createElement('p');
+    name.textContent = category.name;
 
-    // No mostrar si el target es un control interactivo (botón, input, enlace)
-    if (e.target.closest('button, a, input, textarea, select')) return;
+    item.appendChild(img);
+    item.appendChild(name);
 
-    const hint = card.querySelector('.image-hint');
-    if (!hint) return;
+    item.addEventListener('click', () => filterByCategory(category.id));
+    return item;
+};
 
-    // Mostrar hint (usa la misma clase .show-hint que el CSS de hint)
-    hint.classList.add('show-hint');
-
-    // Guardar y limpiar timeout anterior si existe
-    if (card._hintTimeout) {
-      clearTimeout(card._hintTimeout);
-      card._hintTimeout = null;
-    }
-
-    // Ocultar automát. después de X ms
-    card._hintTimeout = setTimeout(() => {
-      hint.classList.remove('show-hint');
-      card._hintTimeout = null;
-    }, 2200);
-
-    lastTouchedCard = card;
-  }
-
-  // Si detectamos movimiento, lo interpretamos como scroll y ocultamos el hint
-  function onTouchMove() {
-    lastTouchMoved = true;
-    if (lastTouchedCard) {
-      const h = lastTouchedCard.querySelector('.image-hint');
-      if (h) h.classList.remove('show-hint');
-      if (lastTouchedCard._hintTimeout) {
-        clearTimeout(lastTouchedCard._hintTimeout);
-        lastTouchedCard._hintTimeout = null;
-      }
-      lastTouchedCard = null;
-    }
-  }
-
-  // Al terminar el touch, si fue un tap (no hubo movimiento) mantenemos el hint un poco
-  function onTouchEnd() {
-    if (!lastTouchedCard) return;
-    const h = lastTouchedCard.querySelector('.image-hint');
-    if (h && !lastTouchMoved) {
-      // mantener un poco visible para que el usuario lo note al tocar
-      setTimeout(() => {
-        h.classList.remove('show-hint');
-      }, 700);
-    } else {
-      if (h) h.classList.remove('show-hint');
-    }
-    if (lastTouchedCard && lastTouchedCard._hintTimeout) {
-      clearTimeout(lastTouchedCard._hintTimeout);
-      lastTouchedCard._hintTimeout = null;
-    }
-    lastTouchedCard = null;
-  }
-
-  // Delegación global ligera: passive para no bloquear scroll
-  document.addEventListener('touchstart', onTouchStart, { passive: true });
-  document.addEventListener('touchmove', onTouchMove, { passive: true });
-  document.addEventListener('touchend', onTouchEnd, { passive: true });
-}
-
-function renderPagination(currentPage, totalPages, data, perPage) {
-    const paginationContainer = document.getElementById('pagination-container');
-    paginationContainer.innerHTML = '';
-
-    function createBtn(label, page, active = false) {
-        const btn = document.createElement('button');
-        btn.textContent = label;
-        btn.className = 'pagination-btn';
-        if (active) btn.classList.add('active');
-        btn.addEventListener('click', () => {
-            renderProducts(allFilteredContainer, data, page, perPage, true);
-            window.scrollTo({
-                top: 0,
-                behavior: 'smooth'
-            });
-        });
-        return btn;
-    }
-    if (currentPage > 1) paginationContainer.appendChild(createBtn('Primera', 1));
-    if (currentPage > 3) paginationContainer.appendChild(document.createTextNode('...'));
-    const start = Math.max(1, currentPage - 2);
-    const end = Math.min(totalPages, currentPage + 2);
-    for (let i = start; i <= end; i++) {
-        paginationContainer.appendChild(createBtn(i, i, i === currentPage));
-    }
-    if (currentPage < totalPages - 2) paginationContainer.appendChild(document.createTextNode('...'));
-    if (currentPage < totalPages) paginationContainer.appendChild(createBtn('Última', totalPages));
-}
-
-const generateCategoryCarousel = () => {
-    if (!categoryCarousel) return;
+const renderCategories = (categories) => {
     categoryCarousel.innerHTML = '';
-    const categories = Array.from(new Set(products.map(p => p.category))).map(c => ({ label: c }));
+    // Botón para mostrar todos
     const allItem = document.createElement('div');
-    allItem.className = 'category-item';
-    const allIconPath = 'img/icons/all.webp';
-    allItem.innerHTML = `<img class="category-image" src="${allIconPath}" alt="Todo" data-category="__all"><span class="category-name">Todo</span>`;
+    allItem.className = 'category-item active';
+    allItem.dataset.category = 'all';
+    allItem.innerHTML = '<img src="https://via.placeholder.com/50?text=Todo" alt="Todas las categorías"><p>Todo</p>';
+    allItem.addEventListener('click', showAllProducts);
     categoryCarousel.appendChild(allItem);
-    categories.forEach(c => {
-        const el = document.createElement('div');
-        el.className = 'category-item';
-        const fileName = `img/icons/${c.label.toLowerCase().replace(/\s+/g, '_')}.webp`;
-        el.innerHTML = `<img class="category-image" src="${fileName}" alt="${c.label}" data-category="${c.label}"><span class="category-name">${c.label}</span>`;
-        categoryCarousel.appendChild(el);
+
+    categories.forEach(category => {
+        categoryCarousel.appendChild(createCategoryItem(category));
     });
 };
 
-searchInput && searchInput.addEventListener('input', (e) => {
-    const q = e.target.value.trim().toLowerCase();
-    if (!q) {
-        showDefaultSections();
-        return;
-    }
-    const filtered = products.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
-    if (filteredSection) filteredSection.style.display = 'block';
-    if (featuredSection) featuredSection.style.display = 'none';
-    if (offersSection) offersSection.style.display = 'none';
-    if (searchResultsTitle) searchResultsTitle.textContent = `Resultados para "${q}"`;
-    renderProducts(allFilteredContainer, filtered, 1, 20, true);
-});
-
-const showDefaultSections = () => {
-    if (featuredSection) featuredSection.style.display = 'block';
-    if (offersSection) offersSection.style.display = 'block';
-    if (filteredSection) filteredSection.style.display = 'none';
-    const featured = shuffleArray(products.filter(p => p.featured)).slice(0, 25);
-    const offers = shuffleArray(products.filter(p => p.isOffer)).slice(0, 25);
-    if (featuredContainer) renderProducts(featuredContainer, featured, 1, 25, false);
-    if (offersGrid) renderProducts(offersGrid, offers, 1, 25, false);
+const updateCarousel = () => {
+    if (!currentProduct || !carouselImagesContainer) return;
+    const offset = -currentImageIndex * 100;
+    carouselImagesContainer.style.transform = `translateX(${offset}%)`;
+    prevBtn.disabled = currentImageIndex === 0;
+    nextBtn.disabled = currentImageIndex === currentProduct.images.length - 1;
 };
 
-categoryCarousel && categoryCarousel.addEventListener('click', (ev) => {
-    const img = ev.target.closest('.category-image');
-    if (!img) return;
-    const cat = img.dataset.category;
-    if (searchInput) searchInput.value = '';
-    if (cat === '__all') {
-        showDefaultSections();
+// --- Manejo del Carrito ---
+const updateCartBadge = () => {
+    const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+    cartBadge.textContent = totalItems;
+};
+
+const updateCartModal = () => {
+    cartItemsContainer.innerHTML = '';
+    let total = 0;
+
+    if (cart.length === 0) {
+        cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
+        cartTotalSpan.textContent = '0';
+        checkoutBtn.disabled = true;
         return;
     }
-    const filtered = products.filter(p => p.category.toLowerCase() === cat.toLowerCase());
-    if (filteredSection) filteredSection.style.display = 'block';
-    if (featuredSection) featuredSection.style.display = 'none';
-    if (offersSection) offersSection.style.display = 'none';
-    if (searchResultsTitle) searchResultsTitle.textContent = cat;
-    renderProducts(allFilteredContainer, filtered, 1, 20, true);
+
+    cart.forEach(item => {
+        const itemTotal = item.price * item.quantity;
+        total += itemTotal;
+
+        const cartItemDiv = document.createElement('div');
+        cartItemDiv.className = 'cart-item';
+
+        cartItemDiv.innerHTML = `
+            <div class="item-info">
+                <span class="item-name">${item.name}</span>
+                <span class="item-qty">(${item.quantity}x)</span>
+            </div>
+            <span class="item-price">${formatPrice(itemTotal)}</span>
+            <button class="remove-btn" data-id="${item.id}" aria-label="Eliminar de carrito">&times;</button>
+        `;
+
+        cartItemsContainer.appendChild(cartItemDiv);
+    });
+
+    cartTotalSpan.textContent = formatPrice(total);
+    checkoutBtn.disabled = false;
+
+    // Add event listeners for remove buttons
+    cartItemsContainer.querySelectorAll('.remove-btn').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const idToRemove = e.target.dataset.id;
+            removeFromCart(idToRemove);
+        });
+    });
+};
+
+const addToCart = (product, quantity) => {
+    const existingItem = cart.find(item => item.id === product.id);
+
+    if (existingItem) {
+        existingItem.quantity += quantity;
+    } else {
+        cart.push({
+            id: product.id,
+            name: product.name,
+            price: product.price,
+            quantity: quantity
+        });
+    }
+
+    updateCartBadge();
+    updateCartModal();
+    closeModal(productModal);
+};
+
+const removeFromCart = (productId) => {
+    cart = cart.filter(item => item.id !== productId);
+    updateCartBadge();
+    updateCartModal();
+};
+
+const clearCart = () => {
+    cart = [];
+    updateCartBadge();
+    updateCartModal();
+};
+
+// --- Supabase y Fetching de Datos ---
+const initializeSupabase = () => {
+    SB_URL = "https://ndqzyplsiqigsynweihk.supabase.co";
+    SB_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5kcXp5cGxzaXFpZ3N5bndlaWhrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MDQ1NTkwNzMsImV4cCI6MjAyMDEzNTA3M30.40Jb_K4f3F-U_Wn97e7YQ61sS0z8P2zE0tG0O1vN3c0";
+    supabaseClient = createClient(SB_URL, SB_ANON_KEY);
+};
+
+const fetchProducts = async () => {
+    showLoading();
+    try {
+        const { data: fetchedProducts, error: productsError } = await supabaseClient
+            .from('products')
+            .select(`
+                id,
+                name,
+                description,
+                price,
+                is_featured,
+                is_offer,
+                category_id,
+                images ( url )
+            `)
+            .eq('is_active', true);
+
+        if (productsError) throw productsError;
+        products = fetchedProducts.map(p => ({
+            ...p,
+            images: p.images || []
+        }));
+
+        const { data: categoriesData, error: categoriesError } = await supabaseClient
+            .from('categories')
+            .select('*')
+            .eq('is_active', true)
+            .order('name', { ascending: true });
+
+        if (categoriesError) throw categoriesError;
+
+        renderCategories(categoriesData);
+        showAllProducts();
+
+    } catch (error) {
+        console.error("Error al cargar datos:", error.message);
+        // Si hay error, ocultamos la carga y mostramos un mensaje general si es necesario
+    } finally {
+        hideLoading();
+    }
+};
+
+// --- Manejo de la Interfaz ---
+const showAllProducts = () => {
+    const featuredProducts = products.filter(p => p.is_featured);
+    const offerProducts = products.filter(p => p.is_offer);
+
+    featuredSection.style.display = featuredProducts.length > 0 ? 'block' : 'none';
+    offersSection.style.display = offerProducts.length > 0 ? 'block' : 'none';
+    filteredSection.style.display = 'none';
+
+    renderProducts(featuredProducts, featuredContainer);
+    renderProducts(offerProducts, offersGrid);
+
+    document.querySelectorAll('.category-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.category === 'all') {
+            item.classList.add('active');
+        }
+    });
+};
+
+const filterByCategory = (categoryId) => {
+    const filteredProducts = products.filter(p => p.category_id === categoryId);
+
+    featuredSection.style.display = 'none';
+    offersSection.style.display = 'none';
+    filteredSection.style.display = 'block';
+
+    searchResultsTitle.textContent = 'Productos por Categoría';
+    noProductsMessage.style.display = filteredProducts.length === 0 ? 'block' : 'none';
+
+    renderProducts(filteredProducts, allFilteredContainer);
+
+    document.querySelectorAll('.category-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.category === categoryId) {
+            item.classList.add('active');
+        }
+    });
+};
+
+const handleSearch = (query) => {
+    const trimmedQuery = query.trim().toLowerCase();
+    if (trimmedQuery.length === 0) {
+        showAllProducts();
+        return;
+    }
+
+    const searchResults = products.filter(p =>
+        p.name.toLowerCase().includes(trimmedQuery) ||
+        p.description.toLowerCase().includes(trimmedQuery)
+    );
+
+    featuredSection.style.display = 'none';
+    offersSection.style.display = 'none';
+    filteredSection.style.display = 'block';
+
+    searchResultsTitle.textContent = `Resultados para "${query}"`;
+    noProductsMessage.style.display = searchResults.length === 0 ? 'block' : 'none';
+
+    renderProducts(searchResults, allFilteredContainer);
+
+    document.querySelectorAll('.category-item').forEach(item => item.classList.remove('active'));
+};
+
+
+// --- Manejo de Modales ---
+const openModal = (modalElement) => {
+    modalElement.classList.add('active');
+    modalElement.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+};
+
+const closeModal = (modalElement) => {
+    modalElement.classList.remove('active');
+    modalElement.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+};
+
+const openProductModal = (productId) => {
+    currentProduct = products.find(p => p.id === productId);
+    if (!currentProduct) return;
+
+    modalProductName.textContent = currentProduct.name;
+    // Mostrar descripción completa
+    modalProductDescription.textContent = currentProduct.description;
+    modalProductPrice.textContent = formatPrice(currentProduct.price);
+    qtyInput.value = 1;
+    currentImageIndex = 0;
+
+    carouselImagesContainer.innerHTML = '';
+    currentProduct.images.forEach(image => {
+        const img = document.createElement('img');
+        img.className = 'carousel-image';
+        img.src = image.url || 'https://via.placeholder.com/400x300?text=Sin+Imagen';
+        img.alt = currentProduct.name;
+        carouselImagesContainer.appendChild(img);
+    });
+
+    updateCarousel();
+    openModal(productModal);
+};
+
+// --- Manejo del Checkout ---
+const handleCheckout = () => {
+    if (cart.length === 0) return;
+
+    const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    const orderItems = cart.map(item => `${item.name} (${item.quantity}x)`).join(', ');
+    const whatsappMessage = `Hola, quiero realizar un pedido: \nProductos: ${orderItems}\nTotal a pagar: ${formatPrice(total)}`;
+
+    orderDetails = { total, orderItems, whatsappMessage };
+
+    orderSuccessTotal.textContent = formatPrice(total);
+    orderSuccessDescription.textContent = orderDetails.orderItems;
+
+    whatsappBtn.href = `https://wa.me/573227671829?text=${encodeURIComponent(orderDetails.whatsappMessage)}`;
+
+    closeModal(cartModal);
+    openModal(successModal);
+    clearCart(); // Limpiar carrito después de mostrar el modal de éxito
+};
+
+// --- Banner de Instalación PWA ---
+const handleInstallPrompt = (e) => {
+    deferredPrompt = e;
+    installBanner.hidden = false;
+};
+
+const handleInstallClick = () => {
+    installBanner.hidden = true;
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                console.log('El usuario aceptó la instalación A2HS');
+            } else {
+                console.log('El usuario rechazó la instalación A2HS');
+            }
+            deferredPrompt = null;
+        });
+    }
+};
+
+const handleBannerClose = () => {
+    installBanner.hidden = true;
+};
+
+// --- Event Listeners ---
+document.addEventListener('DOMContentLoaded', () => {
+    initializeSupabase();
+    fetchProducts();
+
+    // Carrusel de Banners
+    let bannerIndex = 0;
+    const bannerSlides = bannerCarousel.querySelectorAll('.banner-slide');
+
+    const updateBannerCarousel = () => {
+        const offset = -bannerIndex * 100;
+        bannerCarousel.style.transform = `translateX(${offset}%)`;
+
+        bannerDotsContainer.innerHTML = '';
+        bannerSlides.forEach((_, index) => {
+            const dot = document.createElement('span');
+            dot.className = `dot ${index === bannerIndex ? 'active' : ''}`;
+            dot.addEventListener('click', () => {
+                bannerIndex = index;
+                updateBannerCarousel();
+            });
+            bannerDotsContainer.appendChild(dot);
+        });
+    };
+
+    const nextSlide = () => {
+        bannerIndex = (bannerIndex + 1) % bannerSlides.length;
+        updateBannerCarousel();
+    };
+
+    if (bannerCarousel && bannerDotsContainer && bannerSlides.length > 0) {
+        updateBannerCarousel();
+        setInterval(nextSlide, 5000);
+    }
 });
 
-(function makeCarouselDraggable() {
-    if (!categoryCarousel) return;
-    let isDown = false,
-        startX, scrollLeft;
-    categoryCarousel.addEventListener('mousedown', (e) => {
-        isDown = true;
-        startX = e.pageX - categoryCarousel.offsetLeft;
-        scrollLeft = categoryCarousel.scrollLeft;
-    });
-    window.addEventListener('mouseup', () => {
-        isDown = false;
-    });
-    categoryCarousel.addEventListener('mousemove', (e) => {
-        if (!isDown) return;
-        e.preventDefault();
-        const x = e.pageX - categoryCarousel.offsetLeft;
-        const walk = (x - startX) * 1.5;
-        categoryCarousel.scrollLeft = scrollLeft - walk;
-    });
-    categoryCarousel.addEventListener('touchstart', (e) => {
-        startX = e.touches[0].pageX - categoryCarousel.offsetLeft;
-        scrollLeft = categoryCarousel.scrollLeft;
-    });
-    categoryCarousel.addEventListener('touchmove', (e) => {
-        const x = e.touches[0].pageX - categoryCarousel.offsetLeft;
-        const walk = (x - startX) * 1.2;
-        categoryCarousel.scrollLeft = scrollLeft - walk;
-    });
-})();
+// Búsqueda
+searchInput.addEventListener('input', (e) => handleSearch(e.target.value));
 
-document.addEventListener('click', (e) => {
-    if (e.target.closest('.modal-trigger')) {
-        const id = e.target.dataset.id;
-        openProductModal(id);
+// Navegación del Carrusel del Modal
+prevBtn && prevBtn.addEventListener('click', () => {
+    if (currentImageIndex > 0) {
+        currentImageIndex--;
+        updateCarousel();
     }
-    if (e.target.id === 'modal-add-to-cart-btn') {
-        const qty = Math.max(1, parseInt(qtyInput.value) || 1);
-        addToCart(currentProduct.id, qty);
+});
+
+nextBtn && nextBtn.addEventListener('click', () => {
+    if (currentProduct && currentImageIndex < currentProduct.images.length - 1) {
+        currentImageIndex++;
+        updateCarousel();
+    }
+});
+
+// Añadir al Carrito
+modalAddToCartBtn && modalAddToCartBtn.addEventListener('click', () => {
+    const quantity = parseInt(qtyInput.value);
+    if (quantity > 0 && currentProduct) {
+        addToCart(currentProduct, quantity);
+    }
+});
+
+// Abrir Carrito
+cartBtn && cartBtn.addEventListener('click', () => openModal(cartModal));
+
+// Cerrar Carrito
+closeCartBtn && closeCartBtn.addEventListener('click', () => closeModal(cartModal));
+
+// Cerrar Modal de Producto
+modalCloseBtn && modalCloseBtn.addEventListener('click', () => closeModal(productModal));
+
+// Cerrar Modal de Éxito
+closeSuccessBtn.forEach(btn => btn.addEventListener('click', () => closeModal(successModal)));
+closeSuccessFinalBtn && closeSuccessFinalBtn.addEventListener('click', () => closeModal(successModal));
+
+// Checkout
+checkoutBtn && checkoutBtn.addEventListener('click', handleCheckout);
+
+// Cerrar modales haciendo clic fuera (Product Modal)
+productModal && productModal.addEventListener('click', (e) => {
+    if (e.target === productModal) {
         closeModal(productModal);
     }
 });
 
-// --- Lógica de Modales ---
-function showModal(modal) {
-    modal.style.display = 'flex';
-    modal.setAttribute('aria-hidden', 'false');
-}
-
-function closeModal(modal) {
-    modal.style.display = 'none';
-    modal.setAttribute('aria-hidden', 'true');
-}
-
-[productModal, cartModal, checkoutModal, orderSuccessModal].forEach(modal => {
-    modal && modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeModal(modal);
-        }
-        if (e.target.classList.contains('modal-close')) {
-            closeModal(modal);
-        }
-    });
-});
-
-closeSuccessBtn && closeSuccessBtn.addEventListener('click', () => {
-    closeModal(orderSuccessModal);
-});
-
-function openProductModal(id) {
-    const product = products.find(p => p.id === id);
-    if (!product) return;
-    currentProduct = product;
-    modalProductName.textContent = product.name;
-    modalProductDescription.textContent = product.description;
-    modalProductPrice.textContent = `$${money(product.price)}`;
-    qtyInput.value = 1;
-    modalAddToCartBtn.dataset.id = product.id;
-    updateCarousel(product.image || []);
-    showModal(productModal);
-}
-
-// --- Anuncios ---
-document.querySelectorAll('.ad-image').forEach(img => {
-    img.addEventListener('click', () => {
-        const id = img.dataset.productId;
-        openProductModal(id);
-    });
-});
-
-function updateCarousel(images) {
-    carouselImagesContainer.innerHTML = '';
-    if (!images || images.length === 0) {
-        carouselImagesContainer.innerHTML = `<div class="carousel-image" style="display:flex;align-items:center;justify-content:center;background:#f3f3f3">Sin imagen</div>`;
-        return;
-    }
-    images.forEach(src => {
-        const img = document.createElement('img');
-        img.src = src;
-        img.className = 'carousel-image';
-        carouselImagesContainer.appendChild(img);
-    });
-    currentImageIndex = 0;
-    carouselImagesContainer.style.transform = `translateX(0)`;
-}
-
-prevBtn && prevBtn.addEventListener('click', () => {
-    if (currentImageIndex > 0) currentImageIndex--;
-    updateCarouselPosition();
-});
-
-nextBtn && nextBtn.addEventListener('click', () => {
-    const imgs = carouselImagesContainer.querySelectorAll('.carousel-image');
-    if (currentImageIndex < imgs.length - 1) currentImageIndex++;
-    updateCarouselPosition();
-});
-
-function updateCarouselPosition() {
-    const imgs = carouselImagesContainer.querySelectorAll('.carousel-image');
-    if (imgs.length === 0) return;
-    const imgWidth = imgs[0].clientWidth || carouselImagesContainer.clientWidth;
-    carouselImagesContainer.style.transform = `translateX(-${currentImageIndex * imgWidth}px)`;
-}
-window.addEventListener('resize', updateCarouselPosition);
-
-function updateCart() {
-    cartItemsContainer.innerHTML = '';
-    if (cart.length === 0) {
-        cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
-        cartBadge.style.display = 'none';
-        cartBadge.textContent = '0';
-        cartTotalElement.textContent = money(0);
-        return;
-    }
-    let total = 0,
-        totalItems = 0;
-    cart.forEach((item, idx) => {
-        total += item.price * item.qty;
-        totalItems += item.qty;
-        const div = document.createElement('div');
-        div.className = 'cart-item';
-        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><stro[...]
-        cartItemsContainer.appendChild(div);
-    });
-    cartBadge.style.display = 'flex';
-    cartBadge.textContent = String(totalItems);
-    cartTotalElement.textContent = money(total);
-}
-
-function addToCart(id, qty = 1) {
-    const p = products.find(x => x.id === id);
-    if (!p) return;
-
-    // Verificar si hay suficiente stock
-    const availableStock = p.stock || 0;
-    const existingInCart = cart.find(i => i.id === id);
-    const currentQtyInCart = existingInCart ? existingInCart.qty : 0;
-
-    if (currentQtyInCart + qty > availableStock) {
-        alert(`En el momento solo quedan ${availableStock} unidades.`);
-        return;
-    }
-
-    if (existingInCart) {
-        existingInCart.qty += qty;
-    } else {
-        cart.push({
-            id: p.id,
-            name: p.name,
-            price: p.price,
-            qty,
-            image: p.image[0]
-        });
-    }
-
-    updateCart();
-
-    // Mostrar el toast de confirmación con imagen y título
-    showAddToCartToast({
-        image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png',
-        name: p.name,
-        qty
-    });
-}
-
-/* Helper: escapar texto para evitar inyección en el toast */
-function escapeHtml(str) {
-    if (!str) return '';
-    return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;');
-}
-
-/* Helper: crea y anima el toast (se añade al body y se elimina tras el tiempo especificado) */
-function showAddToCartToast({ image, name, qty = 1 }) {
-    // Si ya existe un toast activo, lo removemos para re-crear (evita duplicados)
-    const existing = document.getElementById('add-to-cart-toast');
-    if (existing) {
-        existing.remove();
-    }
-
-    const toast = document.createElement('div');
-    toast.id = 'add-to-cart-toast';
-    toast.className = 'add-to-cart-toast';
-
-    const safeName = escapeHtml(name);
-
-    toast.innerHTML = `
-      <img src="${image}" alt="${safeName}" class="toast-img" loading="lazy" />
-      <div class="toast-text">
-        <div class="toast-title">${safeName}</div>
-        <div class="toast-sub">Añadido x${qty}</div>
-      </div>
-    `;
-
-    // Añadir al DOM
-    document.body.appendChild(toast);
-
-    // Forzar reflow y disparar la animación CSS
-    // (usa requestAnimationFrame para asegurar aplicación de la clase 'show')
-    requestAnimationFrame(() => {
-        toast.classList.add('show');
-    });
-
-    // Tiempo visible y salida animada
-    const VISIBLE_MS = 2000;
-    setTimeout(() => {
-        toast.classList.remove('show');
-        toast.classList.add('hide');
-        // eliminar al terminar la transición
-        toast.addEventListener('transitionend', () => {
-            toast.remove();
-        }, { once: true });
-    }, VISIBLE_MS);
-}
-
-cartItemsContainer.addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-idx]');
-    if (!btn) return;
-    const idx = parseInt(btn.dataset.idx, 10);
-    const op = btn.dataset.op;
-
-    const productInCart = cart[idx];
-    const originalProduct = products.find(p => p.id === productInCart.id);
-
-    if (op === 'inc') {
-        if ((productInCart.qty + 1) > (originalProduct.stock || 0)) {
-            alert(`En el momento solo quedan ${originalProduct.stock} unidades.`);
-            return;
-        }
-        productInCart.qty++;
-    }
-    if (op === 'dec') {
-        productInCart.qty--;
-        if (productInCart.qty <= 0) cart.splice(idx, 1);
-    }
-    updateCart();
-});
-
-cartBtn.addEventListener('click', () => {
-    showModal(cartModal);
-    updateCart();
-});
-
-checkoutBtn.addEventListener('click', () => {
-    if (cart.length === 0) {
-        alert('El carrito está vacío');
-        return;
-    }
-    showModal(checkoutModal);
-});
-
-finalizeBtn.addEventListener('click', () => {
-    const name = customerNameInput.value.trim();
-    const address = customerAddressInput.value.trim();
-    const payment = document.querySelector('input[name="payment"]:checked')?.value || '';
-    
-    if (!termsConsentCheckbox.checked) {
-        alert('Debes aceptar los Términos y Condiciones y la Política de Datos para continuar.');
-        return;
-    }
-
-    if (!name || !address) {
-        alert('Por favor completa nombre y dirección');
-        return;
-    }
-
-    orderDetails = {
-        name,
-        address,
-        payment,
-        items: [...cart],
-        total: cart.reduce((acc, item) => acc + item.price * item.qty, 0)
-    };
-
-    closeModal(checkoutModal);
-    closeModal(cartModal);
-    showOrderSuccessModal();
-});
-
-function showOrderSuccessModal() {
-    if (orderDetails.total) {
-        orderSuccessTotal.textContent = money(orderDetails.total);
-    }
-    showModal(orderSuccessModal);
-}
-
-whatsappBtn.addEventListener('click', async () => {
-    if (Object.keys(orderDetails).length === 0) {
-        alert('No hay detalles del pedido para enviar.');
-        return;
-    }
-
-    if (!supabaseClient) {
-        alert('El cliente no está inicializado. Inténtalo de nuevo.');
-        return;
-    }
-
-    try {
-        // 1. Guardar la orden en DB (tabla 'orders')
-        const { data: orderData, error: orderError } = await supabaseClient
-            .from('orders')
-            .insert([{
-                customer_name: orderDetails.name,
-                customer_address: orderDetails.address, 
-                payment_method: orderDetails.payment,
-                total_amount: orderDetails.total,
-                order_items: orderDetails.items,
-                order_status: 'Pendiente',
-            }])
-            .select();
-
-        if (orderError) {
-           
-            console.error('Error al guardar la orden en DB:', orderError);
-            alert('Error al guardar la orden en DB: ' + orderError.message);
-            return;
-        }
-        
-        // 2. Intentar llamar al API Route
-        const response = await fetch('api/place-order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                orderDetails,
-                products 
-            })
-        });
-
-        let result = {};
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('API Route Falló con status:', response.status, 'Respuesta:', errorText);
-        } else {
-             try {
-                result = await response.json();
-             } catch (e) {
-                 console.warn('Advertencia: El API Route devolvió una respuesta OK, pero no era JSON válido:', e.message);
-             }
-        }
-
-        // 3. Enviar mensaje de WhatsApp
-        const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en $[...]
-        orderDetails.items.forEach(item => {
-            message += `- ${encodeURIComponent(item.name)} x${item.qty} = $${money(item.price * item.qty)}%0A`;
-        });
-        message += `%0ATotal: $${money(orderDetails.total)}`;
-        const link = `https://wa.me/${whatsappNumber}?text=${message}`;
-        window.open(link, '_blank');
-        
-        // 4. Limpiar y actualizar UI
-        cart = []; 
-        orderDetails = {}; 
-        
-        products = await fetchProductsFromSupabase(); 
-        showDefaultSections(); 
-        updateCart(); 
-        closeModal(orderSuccessModal);
-
-    } catch (error) {
-        
-        alert('Error al procesar el pedido: ' + error.message);
-        console.error('Fallo en el pedido:', error);
+// Cerrar modales haciendo clic fuera (Cart Modal)
+cartModal && cartModal.addEventListener('click', (e) => {
+    if (e.target === cartModal) {
+        closeModal(cartModal);
     }
 });
 
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    installBanner.classList.add('visible');
+// Cerrar modales haciendo clic fuera (Success Modal)
+successModal && successModal.addEventListener('click', (e) => {
+    if (e.target === successModal) {
+        closeModal(successModal);
+    }
 });
 
-installPromptBtn && installPromptBtn.addEventListener('click', async () => {
-    if (!deferredPrompt) return;
-    installBanner.classList.remove('visible');
-    deferredPrompt.prompt();
-    await deferredPrompt.userChoice;
-    deferredPrompt = null;
-});
+// Eventos de instalación PWA
+window.addEventListener('beforeinstallprompt', handleInstallPrompt);
+installPromptBtn && installPromptBtn.addEventListener('click', handleInstallClick);
+installCloseBtn && installCloseBtn.addEventListener('click', handleBannerClose);
 
-installCloseBtn && installCloseBtn.addEventListener('click', () => installBanner.classList.remove('visible'));
-
-// --- Funciones de DB ---
-const fetchProductsFromSupabase = async () => {
-    if (!supabaseClient) {
-        
-        return []; 
-    }
-    try {
-        const { data, error } = await supabaseClient
-            .from('products')
-            .select('*');
-        if (error) {
-            throw error;
-        }
-        return data;
-    } catch (err) {
-        console.error('Error al cargar los productos:', err.message);
-        alert('Hubo un error al cargar los productos. Por favor, revisa la consola para más detalles.');
-        return [];
-    }
-};
-
-const loadConfigAndInitSupabase = async () => {
-    try {
-        
-        const response = await fetch('api/get-config');
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error del API Route api/get-config:', errorText);
-            throw new Error(`Fallo al cargar la configuración desde V: ${response.status} ${response.statusText}`);
-        }
-        
-        const config = await response.json();
-        
-        if (!config.url || !config.anonKey) {
-             throw new Error("El API Route no retornó las claves de DB. Revisa las Variables de Entorno en Vercel.");
-        }
-
-        SB_URL = config.url;
-        SB_ANON_KEY = config.anonKey;
-
-        
-        supabaseClient = createClient(SB_URL, SB_ANON_KEY);
-
-        products = await fetchProductsFromSupabase();
-        if (products.length > 0) {
-            showDefaultSections();
-            generateCategoryCarousel();
-        }
-        updateCart();
-
-        // Ocultar overlay de carga una vez que la app haya inicializado
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-            loadingOverlay.setAttribute('aria-hidden', 'true');
-        }
-    } catch (error) {
-        console.error('Error FATAL al iniciar la aplicación:', error);
-        
-        const loadingMessage = document.createElement('div');
-        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;[...]
-        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno en Vercel).';
-        document.body.appendChild(loadingMessage);
-    }
-};
-
-
-// CERRAR OVERLAY ZOOM CON ESC
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    if (imageZoomOverlay && imageZoomOverlay.style.display === 'flex') {
-      imageZoomOverlay.style.display = 'none';
-      imageZoomOverlay.setAttribute('aria-hidden', 'true');
-      imageZoomImg.src = '';
-    }
-  }
-});
-
-// Manejo de zoom: al hacer click en una imagen del carousel abrimos overlay con la imagen en grande
+// Abrir overlay de zoom al hacer click en la imagen del carousel
 carouselImagesContainer && carouselImagesContainer.addEventListener('click', (e) => {
   const img = e.target.closest('.carousel-image');
   if (!img) return;
   if (!imageZoomOverlay) return;
   imageZoomImg.src = img.src || img.getAttribute('src');
-  imageZoomOverlay.style.display = 'flex';
-  imageZoomOverlay.setAttribute('aria-hidden', 'false');
+  openModal(imageZoomOverlay);
 });
 
 // Cerrar overlay imagen al hacer click afuera de la imagen o en el botón X
 if (imageZoomOverlay) {
   imageZoomOverlay.addEventListener('click', (e) => {
-    // si clic en background o en close button -> cerrar
-    if (e.target === imageZoomOverlay || e.target.classList.contains('zoom-close')) {
-      imageZoomOverlay.style.display = 'none';
-      imageZoomOverlay.setAttribute('aria-hidden', 'true');
+    if (e.target === imageZoomOverlay || e.target.classList.contains('zoom-close') || e.target.closest('.zoom-close')) {
+      closeModal(imageZoomOverlay);
       imageZoomImg.src = '';
     }
   });
 
   if (zoomCloseBtn) {
     zoomCloseBtn.addEventListener('click', () => {
-      imageZoomOverlay.style.display = 'none';
-      imageZoomOverlay.setAttribute('aria-hidden', 'true');
+      closeModal(imageZoomOverlay);
       imageZoomImg.src = '';
     });
   }
 
   // Si el usuario hace click sobre la imagen también cerramos (toque para cerrar)
   imageZoomImg && imageZoomImg.addEventListener('click', () => {
-    imageZoomOverlay.style.display = 'none';
-    imageZoomOverlay.setAttribute('aria-hidden', 'true');
+    closeModal(imageZoomOverlay);
     imageZoomImg.src = '';
   });
 }
 
-// --- Mantener la compatibilidad con el resto de la lógica existente ---
-document.addEventListener('DOMContentLoaded', loadConfigAndInitSupabase);
+// Lógica para Ads (simulando click en un producto al hacer click en el ad)
+document.querySelectorAll('.ad-image').forEach(ad => {
+    ad.addEventListener('click', () => {
+        const productId = ad.dataset.productId;
+        if (productId) {
+            openProductModal(productId);
+        }
+    });
+});
