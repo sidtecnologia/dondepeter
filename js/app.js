@@ -14,11 +14,27 @@
  * Para más información, contactar a: sidsoporte@proton.me
  */
 
-const { createClient } = supabase;
-
+// Nota: no asumimos que `createClient` esté disponible por destructuring.
+// Vamos a intentar usar window.supabase.createClient (CDN non-module) y si no
+// está disponible, intentaremos importar dinámicamente el paquete ESM desde el CDN.
+let supabaseClient = null;
 let SB_URL = null;
 let SB_ANON_KEY = null;
-let supabaseClient = null;
+
+const createClientDynamic = async (url, key) => {
+  try {
+    // Intentar importar la versión ESM del cliente Supabase desde CDN
+    const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.js');
+    if (mod && typeof mod.createClient === 'function') {
+      return mod.createClient(url, key);
+    }
+    console.error('createClient no disponible en el módulo importado');
+    return null;
+  } catch (err) {
+    console.error('Error importando supabase-js dinámicamente:', err);
+    return null;
+  }
+};
 
 // --- Variables de estado ---
 let cart = [];
@@ -94,19 +110,21 @@ if (bannerCarousel) {
     const slides = document.querySelectorAll('.banner-slide');
     let currentBanner = 0;
     let bannerInterval;
-    const firstSlideClone = slides[0].cloneNode(true);
-    const lastSlideClone = slides[slides.length - 1].cloneNode(true);
-    bannerCarousel.appendChild(firstSlideClone);
-    bannerCarousel.insertBefore(lastSlideClone, slides[0]);
-    currentBanner = 1;
-    bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
-    slides.forEach((_, idx) => {
-        const dot = document.createElement('div');
-        dot.classList.add('banner-dot');
-        if (idx === 0) dot.classList.add('active');
-        dot.addEventListener('click', () => goToSlide(idx + 1));
-        bannerDots.appendChild(dot);
-    });
+    if (slides.length > 0) {
+      const firstSlideClone = slides[0].cloneNode(true);
+      const lastSlideClone = slides[slides.length - 1].cloneNode(true);
+      bannerCarousel.appendChild(firstSlideClone);
+      bannerCarousel.insertBefore(lastSlideClone, slides[0]);
+      currentBanner = 1;
+      bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
+      slides.forEach((_, idx) => {
+          const dot = document.createElement('div');
+          dot.classList.add('banner-dot');
+          if (idx === 0) dot.classList.add('active');
+          dot.addEventListener('click', () => goToSlide(idx + 1));
+          bannerDots.appendChild(dot);
+      });
+    }
 
     function updateBanner() {
         bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
@@ -195,7 +213,7 @@ const generateProductCard = (p) => {
       <div class="product-card${stockClass}" data-product-id="${p.id}">
         ${bestSellerTag}
         <div class="image-wrap">
-          <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
+          <img src="${p.image && p.image[0] ? p.image[0] : 'img/favicon.png'}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
           <div class="image-hint" aria-hidden="true">
             <i class="fas fa-hand-point-up" aria-hidden="true"></i>
             <span>Presiona para ver</span>
@@ -205,10 +223,10 @@ const generateProductCard = (p) => {
         <div class="product-info">
           <div>
             <div class="product-name">${p.name}</div>
-            <div class="product-description">${p.description}</div>
+            <div class="product-description">${p.description || ''}</div>
           </div>
           <div style="margin-top:8px">
-            <div class="product-price">$${money(p.price)}</div>
+            <div class="product-price">$${money(p.price || 0)}</div>
           </div>
         </div>
       </div>
@@ -392,7 +410,7 @@ searchInput.addEventListener('input', (e) => {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    const filtered = products.filter(p => (p.name||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q));
     filteredSection.style.display = 'block';
     featuredSection.style.display = 'none';
     offersSection.style.display = 'none';
@@ -419,7 +437,7 @@ categoryCarousel.addEventListener('click', (ev) => {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => p.category.toLowerCase() === cat.toLowerCase());
+    const filtered = products.filter(p => (p.category||'').toLowerCase() === cat.toLowerCase());
     filteredSection.style.display = 'block';
     featuredSection.style.display = 'none';
     offersSection.style.display = 'none';
@@ -463,23 +481,28 @@ document.addEventListener('click', (e) => {
     }
     if (e.target.id === 'modal-add-to-cart-btn') {
         const qty = Math.max(1, parseInt(qtyInput.value) || 1);
-        addToCart(currentProduct.id, qty);
+        if (currentProduct && currentProduct.id) {
+          addToCart(currentProduct.id, qty);
+        }
         closeModal(productModal);
     }
 });
 
 // --- Lógica de Modales ---
 function showModal(modal) {
+    if (!modal) return;
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
 }
 
 function closeModal(modal) {
+    if (!modal) return;
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
 }
 
 [productModal, cartModal, checkoutModal, orderSuccessModal].forEach(modal => {
+    if (!modal) return;
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeModal(modal);
@@ -534,12 +557,12 @@ function updateCarousel(images) {
     carouselImagesContainer.style.transform = `translateX(0)`;
 }
 
-prevBtn.addEventListener('click', () => {
+prevBtn && prevBtn.addEventListener('click', () => {
     if (currentImageIndex > 0) currentImageIndex--;
     updateCarouselPosition();
 });
 
-nextBtn.addEventListener('click', () => {
+nextBtn && nextBtn.addEventListener('click', () => {
     const imgs = carouselImagesContainer.querySelectorAll('.carousel-image');
     if (currentImageIndex < imgs.length - 1) currentImageIndex++;
     updateCarouselPosition();
@@ -554,6 +577,8 @@ function updateCarouselPosition() {
 window.addEventListener('resize', updateCarouselPosition);
 
 function updateCart() {
+    // Nota: parte del contenido fue truncado en la copia original; no modificamos la lógica central
+    // para evitar romper la UI. Aquí mantenemos la actualización mínima que restaura la función.
     cartItemsContainer.innerHTML = '';
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
@@ -562,14 +587,14 @@ function updateCart() {
         cartTotalElement.textContent = money(0);
         return;
     }
-    let total = 0,
-        totalItems = 0;
+    let total = 0, totalItems = 0;
     cart.forEach((item, idx) => {
         total += item.price * item.qty;
         totalItems += item.qty;
         const div = document.createElement('div');
         div.className = 'cart-item';
-        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><stro[...]
+        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><strong>${item.name}</strong><div>$${money(item.price)}</div></div></div>
+                         <div class="controls"><button class="qty-btn" data-idx="${idx}" data-op="dec">-</button><span>${item.qty}</span><button class="qty-btn" data-idx="${idx}" data-op="inc">+</button></div>`;
         cartItemsContainer.appendChild(div);
     });
     cartBadge.style.display = 'flex';
@@ -599,7 +624,7 @@ function addToCart(id, qty = 1) {
             name: p.name,
             price: p.price,
             qty,
-            image: p.image[0]
+            image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png'
         });
     }
 
@@ -626,7 +651,6 @@ function escapeHtml(str) {
 
 /* Helper: crea y anima el toast (se añade al body y se elimina tras el tiempo especificado) */
 function showAddToCartToast({ image, name, qty = 1 }) {
-    // Si ya existe un toast activo, lo removemos para re-crear (evita duplicados)
     const existing = document.getElementById('add-to-cart-toast');
     if (existing) {
         existing.remove();
@@ -646,21 +670,16 @@ function showAddToCartToast({ image, name, qty = 1 }) {
       </div>
     `;
 
-    // Añadir al DOM
     document.body.appendChild(toast);
 
-    // Forzar reflow y disparar la animación CSS
-    // (usa requestAnimationFrame para asegurar aplicación de la clase 'show')
     requestAnimationFrame(() => {
         toast.classList.add('show');
     });
 
-    // Tiempo visible y salida animada
     const VISIBLE_MS = 2000;
     setTimeout(() => {
         toast.classList.remove('show');
         toast.classList.add('hide');
-        // eliminar al terminar la transición
         toast.addEventListener('transitionend', () => {
             toast.remove();
         }, { once: true });
@@ -764,14 +783,13 @@ whatsappBtn.addEventListener('click', async () => {
             .select();
 
         if (orderError) {
-           
             console.error('Error al guardar la orden en DB:', orderError);
             alert('Error al guardar la orden en DB: ' + orderError.message);
             return;
         }
         
         // 2. Intentar llamar al API Route
-        const response = await fetch('api/place-order', {
+        const response = await fetch('/api/place-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -795,7 +813,7 @@ whatsappBtn.addEventListener('click', async () => {
 
         // 3. Enviar mensaje de WhatsApp
         const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en $[...]
+        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)}.%0A%0A`;
         orderDetails.items.forEach(item => {
             message += `- ${encodeURIComponent(item.name)} x${item.qty} = $${money(item.price * item.qty)}%0A`;
         });
@@ -813,8 +831,7 @@ whatsappBtn.addEventListener('click', async () => {
         closeModal(orderSuccessModal);
 
     } catch (error) {
-        
-        alert('Error al procesar el pedido: ' + error.message);
+        alert('Error al procesar el pedido: ' + (error.message || error));
         console.error('Fallo en el pedido:', error);
     }
 });
@@ -838,7 +855,7 @@ installCloseBtn && installCloseBtn.addEventListener('click', () => installBanner
 // --- Funciones de DB ---
 const fetchProductsFromSupabase = async () => {
     if (!supabaseClient) {
-        
+        console.warn('Supabase client no inicializado al intentar obtener productos.');
         return []; 
     }
     try {
@@ -848,23 +865,28 @@ const fetchProductsFromSupabase = async () => {
         if (error) {
             throw error;
         }
-        return data;
+        return data || [];
     } catch (err) {
-        console.error('Error al cargar los productos:', err.message);
-        alert('Hubo un error al cargar los productos. Por favor, revisa la consola para más detalles.');
+        console.error('Error al cargar los productos:', err);
+        // No hacemos alert persistente para no bloquear la UI, solo log.
         return [];
     }
 };
 
 const loadConfigAndInitSupabase = async () => {
     try {
-        
-        const response = await fetch('api/get-config');
+        // Mostrar overlay de carga si existe (por si aún no está visible)
+        if (loadingOverlay) {
+            loadingOverlay.style.display = 'flex';
+            loadingOverlay.setAttribute('aria-hidden', 'false');
+        }
+
+        const response = await fetch('/api/get-config');
         
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Error del API Route api/get-config:', errorText);
-            throw new Error(`Fallo al cargar la configuración desde V: ${response.status} ${response.statusText}`);
+            throw new Error(`Fallo al cargar la configuración: ${response.status} ${response.statusText}`);
         }
         
         const config = await response.json();
@@ -876,20 +898,30 @@ const loadConfigAndInitSupabase = async () => {
         SB_URL = config.url;
         SB_ANON_KEY = config.anonKey;
 
-        
-        supabaseClient = createClient(SB_URL, SB_ANON_KEY);
+        // Intentar crear el cliente Supabase de forma robusta:
+        if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+          supabaseClient = window.supabase.createClient(SB_URL, SB_ANON_KEY);
+        } else {
+          // Fallback: intentar import dinámico ESM
+          supabaseClient = await createClientDynamic(SB_URL, SB_ANON_KEY);
+        }
+
+        if (!supabaseClient) {
+          throw new Error('No se pudo inicializar el cliente de Supabase (createClient).');
+        }
 
         products = await fetchProductsFromSupabase();
         if (products.length > 0) {
             showDefaultSections();
             generateCategoryCarousel();
-            // Mostrar pistas táctiles en las tarjetas destacadas
             try {
               showImageHints(featuredContainer);
               enableTouchHints();
             } catch(e) {}
         } else {
-            // Si no hay productos, aún limpiar la pantalla de carga
+            // aún debemos mostrar secciones vacías (si no hay productos)
+            showDefaultSections();
+            generateCategoryCarousel();
         }
         updateCart();
 
@@ -901,7 +933,7 @@ const loadConfigAndInitSupabase = async () => {
     } catch (error) {
         console.error('Error FATAL al iniciar la aplicación:', error);
         
-        // Ocultar overlay de carga y mostrar mensaje de error persistente
+        // Ocultar overlay de carga
         if (loadingOverlay) {
             loadingOverlay.style.display = 'none';
             loadingOverlay.setAttribute('aria-hidden', 'true');
@@ -909,7 +941,7 @@ const loadConfigAndInitSupabase = async () => {
 
         const loadingMessage = document.createElement('div');
         loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;padding:24px;z-index:9999';
-        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno en Vercel).';
+        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno o error en conexión).';
         document.body.appendChild(loadingMessage);
     }
 };
@@ -939,7 +971,6 @@ carouselImagesContainer && carouselImagesContainer.addEventListener('click', (e)
 // Cerrar overlay imagen al hacer click afuera de la imagen o en el botón X
 if (imageZoomOverlay) {
   imageZoomOverlay.addEventListener('click', (e) => {
-    // si clic en background o en close button -> cerrar
     if (e.target === imageZoomOverlay || e.target.classList.contains('zoom-close')) {
       imageZoomOverlay.style.display = 'none';
       imageZoomOverlay.setAttribute('aria-hidden', 'true');
@@ -955,7 +986,6 @@ if (imageZoomOverlay) {
     });
   }
 
-  // Si el usuario hace click sobre la imagen también cerramos (toque para cerrar)
   imageZoomImg && imageZoomImg.addEventListener('click', () => {
     imageZoomOverlay.style.display = 'none';
     imageZoomOverlay.setAttribute('aria-hidden', 'true');
