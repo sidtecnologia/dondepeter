@@ -14,27 +14,11 @@
  * Para más información, contactar a: sidsoporte@proton.me
  */
 
-// Nota: no asumimos que `createClient` esté disponible por destructuring.
-// Vamos a intentar usar window.supabase.createClient (CDN non-module) y si no
-// está disponible, intentaremos importar dinámicamente el paquete ESM desde el CDN.
-let supabaseClient = null;
+const { createClient } = supabase;
+
 let SB_URL = null;
 let SB_ANON_KEY = null;
-
-const createClientDynamic = async (url, key) => {
-  try {
-    // Intentar importar la versión ESM del cliente Supabase desde CDN
-    const mod = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/supabase.js');
-    if (mod && typeof mod.createClient === 'function') {
-      return mod.createClient(url, key);
-    }
-    console.error('createClient no disponible en el módulo importado');
-    return null;
-  } catch (err) {
-    console.error('Error importando supabase-js dinámicamente:', err);
-    return null;
-  }
-};
+let supabaseClient = null;
 
 // --- Variables de estado ---
 let cart = [];
@@ -87,7 +71,7 @@ const termsConsentCheckbox = document.getElementById('terms-consent-checkbox');
 const loadingOverlay = document.getElementById('loading-overlay');
 const imageZoomOverlay = document.getElementById('imageZoomOverlay');
 const imageZoomImg = document.getElementById('imageZoomImg');
-const zoomCloseBtn = imageZoomOverlay && imageZoomOverlay.querySelector('.zoom-close');
+const zoomCloseBtn = document.getElementById('zoom-close-btn');
 
 // --- Funciones de Ayuda ---
 const money = (v) => {
@@ -110,21 +94,19 @@ if (bannerCarousel) {
     const slides = document.querySelectorAll('.banner-slide');
     let currentBanner = 0;
     let bannerInterval;
-    if (slides.length > 0) {
-      const firstSlideClone = slides[0].cloneNode(true);
-      const lastSlideClone = slides[slides.length - 1].cloneNode(true);
-      bannerCarousel.appendChild(firstSlideClone);
-      bannerCarousel.insertBefore(lastSlideClone, slides[0]);
-      currentBanner = 1;
-      bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
-      slides.forEach((_, idx) => {
-          const dot = document.createElement('div');
-          dot.classList.add('banner-dot');
-          if (idx === 0) dot.classList.add('active');
-          dot.addEventListener('click', () => goToSlide(idx + 1));
-          bannerDots.appendChild(dot);
-      });
-    }
+    const firstSlideClone = slides[0].cloneNode(true);
+    const lastSlideClone = slides[slides.length - 1].cloneNode(true);
+    bannerCarousel.appendChild(firstSlideClone);
+    bannerCarousel.insertBefore(lastSlideClone, slides[0]);
+    currentBanner = 1;
+    bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
+    slides.forEach((_, idx) => {
+        const dot = document.createElement('div');
+        dot.classList.add('banner-dot');
+        if (idx === 0) dot.classList.add('active');
+        dot.addEventListener('click', () => goToSlide(idx + 1));
+        bannerDots.appendChild(dot);
+    });
 
     function updateBanner() {
         bannerCarousel.style.transform = `translateX(-${currentBanner * 100}%)`;
@@ -213,7 +195,7 @@ const generateProductCard = (p) => {
       <div class="product-card${stockClass}" data-product-id="${p.id}">
         ${bestSellerTag}
         <div class="image-wrap">
-          <img src="${p.image && p.image[0] ? p.image[0] : 'img/favicon.png'}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
+          <img src="${p.image[0]}" alt="${p.name}" class="product-image modal-trigger" data-id="${p.id}" loading="lazy" />
           <div class="image-hint" aria-hidden="true">
             <i class="fas fa-hand-point-up" aria-hidden="true"></i>
             <span>Presiona para ver</span>
@@ -223,10 +205,10 @@ const generateProductCard = (p) => {
         <div class="product-info">
           <div>
             <div class="product-name">${p.name}</div>
-            <div class="product-description">${p.description || ''}</div>
+            <div class="product-description">${p.description}</div>
           </div>
           <div style="margin-top:8px">
-            <div class="product-price">$${money(p.price || 0)}</div>
+            <div class="product-price">$${money(p.price)}</div>
           </div>
         </div>
       </div>
@@ -239,11 +221,11 @@ function renderProducts(container, data, page = 1, perPage = 20, withPagination 
     container.innerHTML = '';
     const paginationContainer = document.getElementById('pagination-container');
     if (!data || data.length === 0) {
-        noProductsMessage.style.display = 'block';
+        if (noProductsMessage) noProductsMessage.style.display = 'block';
         if (paginationContainer) paginationContainer.innerHTML = '';
         return;
     }
-    noProductsMessage.style.display = 'none';
+    if (noProductsMessage) noProductsMessage.style.display = 'none';
     const totalPages = Math.ceil(data.length / perPage);
     const start = (page - 1) * perPage;
     const end = start + perPage;
@@ -388,6 +370,7 @@ function renderPagination(currentPage, totalPages, data, perPage) {
 }
 
 const generateCategoryCarousel = () => {
+    if (!categoryCarousel) return;
     categoryCarousel.innerHTML = '';
     const categories = Array.from(new Set(products.map(p => p.category))).map(c => ({ label: c }));
     const allItem = document.createElement('div');
@@ -404,48 +387,49 @@ const generateCategoryCarousel = () => {
     });
 };
 
-searchInput.addEventListener('input', (e) => {
+searchInput && searchInput.addEventListener('input', (e) => {
     const q = e.target.value.trim().toLowerCase();
     if (!q) {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => (p.name||'').toLowerCase().includes(q) || (p.description||'').toLowerCase().includes(q) || (p.category||'').toLowerCase().includes(q));
-    filteredSection.style.display = 'block';
-    featuredSection.style.display = 'none';
-    offersSection.style.display = 'none';
-    searchResultsTitle.textContent = `Resultados para "${q}"`;
+    const filtered = products.filter(p => p.name.toLowerCase().includes(q) || p.description.toLowerCase().includes(q) || p.category.toLowerCase().includes(q));
+    if (filteredSection) filteredSection.style.display = 'block';
+    if (featuredSection) featuredSection.style.display = 'none';
+    if (offersSection) offersSection.style.display = 'none';
+    if (searchResultsTitle) searchResultsTitle.textContent = `Resultados para "${q}"`;
     renderProducts(allFilteredContainer, filtered, 1, 20, true);
 });
 
 const showDefaultSections = () => {
-    featuredSection.style.display = 'block';
-    offersSection.style.display = 'block';
-    filteredSection.style.display = 'none';
+    if (featuredSection) featuredSection.style.display = 'block';
+    if (offersSection) offersSection.style.display = 'block';
+    if (filteredSection) filteredSection.style.display = 'none';
     const featured = shuffleArray(products.filter(p => p.featured)).slice(0, 25);
     const offers = shuffleArray(products.filter(p => p.isOffer)).slice(0, 25);
-    renderProducts(featuredContainer, featured, 1, 25, false);
-    renderProducts(offersGrid, offers, 1, 25, false);
+    if (featuredContainer) renderProducts(featuredContainer, featured, 1, 25, false);
+    if (offersGrid) renderProducts(offersGrid, offers, 1, 25, false);
 };
 
-categoryCarousel.addEventListener('click', (ev) => {
+categoryCarousel && categoryCarousel.addEventListener('click', (ev) => {
     const img = ev.target.closest('.category-image');
     if (!img) return;
     const cat = img.dataset.category;
-    searchInput.value = '';
+    if (searchInput) searchInput.value = '';
     if (cat === '__all') {
         showDefaultSections();
         return;
     }
-    const filtered = products.filter(p => (p.category||'').toLowerCase() === cat.toLowerCase());
-    filteredSection.style.display = 'block';
-    featuredSection.style.display = 'none';
-    offersSection.style.display = 'none';
-    searchResultsTitle.textContent = cat;
+    const filtered = products.filter(p => p.category.toLowerCase() === cat.toLowerCase());
+    if (filteredSection) filteredSection.style.display = 'block';
+    if (featuredSection) featuredSection.style.display = 'none';
+    if (offersSection) offersSection.style.display = 'none';
+    if (searchResultsTitle) searchResultsTitle.textContent = cat;
     renderProducts(allFilteredContainer, filtered, 1, 20, true);
 });
 
 (function makeCarouselDraggable() {
+    if (!categoryCarousel) return;
     let isDown = false,
         startX, scrollLeft;
     categoryCarousel.addEventListener('mousedown', (e) => {
@@ -481,29 +465,24 @@ document.addEventListener('click', (e) => {
     }
     if (e.target.id === 'modal-add-to-cart-btn') {
         const qty = Math.max(1, parseInt(qtyInput.value) || 1);
-        if (currentProduct && currentProduct.id) {
-          addToCart(currentProduct.id, qty);
-        }
+        addToCart(currentProduct.id, qty);
         closeModal(productModal);
     }
 });
 
 // --- Lógica de Modales ---
 function showModal(modal) {
-    if (!modal) return;
     modal.style.display = 'flex';
     modal.setAttribute('aria-hidden', 'false');
 }
 
 function closeModal(modal) {
-    if (!modal) return;
     modal.style.display = 'none';
     modal.setAttribute('aria-hidden', 'true');
 }
 
 [productModal, cartModal, checkoutModal, orderSuccessModal].forEach(modal => {
-    if (!modal) return;
-    modal.addEventListener('click', (e) => {
+    modal && modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeModal(modal);
         }
@@ -513,11 +492,9 @@ function closeModal(modal) {
     });
 });
 
-if (closeSuccessBtn) {
-  closeSuccessBtn.addEventListener('click', () => {
+closeSuccessBtn && closeSuccessBtn.addEventListener('click', () => {
     closeModal(orderSuccessModal);
-  });
-}
+});
 
 function openProductModal(id) {
     const product = products.find(p => p.id === id);
@@ -550,7 +527,6 @@ function updateCarousel(images) {
         const img = document.createElement('img');
         img.src = src;
         img.className = 'carousel-image';
-        img.loading = 'lazy';
         carouselImagesContainer.appendChild(img);
     });
     currentImageIndex = 0;
@@ -577,8 +553,6 @@ function updateCarouselPosition() {
 window.addEventListener('resize', updateCarouselPosition);
 
 function updateCart() {
-    // Nota: parte del contenido fue truncado en la copia original; no modificamos la lógica central
-    // para evitar romper la UI. Aquí mantenemos la actualización mínima que restaura la función.
     cartItemsContainer.innerHTML = '';
     if (cart.length === 0) {
         cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
@@ -587,14 +561,14 @@ function updateCart() {
         cartTotalElement.textContent = money(0);
         return;
     }
-    let total = 0, totalItems = 0;
+    let total = 0,
+        totalItems = 0;
     cart.forEach((item, idx) => {
         total += item.price * item.qty;
         totalItems += item.qty;
         const div = document.createElement('div');
         div.className = 'cart-item';
-        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><strong>${item.name}</strong><div>$${money(item.price)}</div></div></div>
-                         <div class="controls"><button class="qty-btn" data-idx="${idx}" data-op="dec">-</button><span>${item.qty}</span><button class="qty-btn" data-idx="${idx}" data-op="inc">+</button></div>`;
+        div.innerHTML = `<div style="display:flex;align-items:center;gap:8px;"><img src="${item.image}" alt="${item.name}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;"><div><stro[...]
         cartItemsContainer.appendChild(div);
     });
     cartBadge.style.display = 'flex';
@@ -624,7 +598,7 @@ function addToCart(id, qty = 1) {
             name: p.name,
             price: p.price,
             qty,
-            image: p.image && p.image[0] ? p.image[0] : 'img/favicon.png'
+            image: p.image[0]
         });
     }
 
@@ -651,6 +625,7 @@ function escapeHtml(str) {
 
 /* Helper: crea y anima el toast (se añade al body y se elimina tras el tiempo especificado) */
 function showAddToCartToast({ image, name, qty = 1 }) {
+    // Si ya existe un toast activo, lo removemos para re-crear (evita duplicados)
     const existing = document.getElementById('add-to-cart-toast');
     if (existing) {
         existing.remove();
@@ -670,16 +645,21 @@ function showAddToCartToast({ image, name, qty = 1 }) {
       </div>
     `;
 
+    // Añadir al DOM
     document.body.appendChild(toast);
 
+    // Forzar reflow y disparar la animación CSS
+    // (usa requestAnimationFrame para asegurar aplicación de la clase 'show')
     requestAnimationFrame(() => {
         toast.classList.add('show');
     });
 
+    // Tiempo visible y salida animada
     const VISIBLE_MS = 2000;
     setTimeout(() => {
         toast.classList.remove('show');
         toast.classList.add('hide');
+        // eliminar al terminar la transición
         toast.addEventListener('transitionend', () => {
             toast.remove();
         }, { once: true });
@@ -783,13 +763,14 @@ whatsappBtn.addEventListener('click', async () => {
             .select();
 
         if (orderError) {
+           
             console.error('Error al guardar la orden en DB:', orderError);
             alert('Error al guardar la orden en DB: ' + orderError.message);
             return;
         }
         
         // 2. Intentar llamar al API Route
-        const response = await fetch('/api/place-order', {
+        const response = await fetch('api/place-order', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -813,7 +794,7 @@ whatsappBtn.addEventListener('click', async () => {
 
         // 3. Enviar mensaje de WhatsApp
         const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)}.%0A%0A`;
+        let message = `Hola mi nombre es ${encodeURIComponent(orderDetails.name)}.%0AHe realizado un pedido para la dirección ${encodeURIComponent(orderDetails.address)} quiero confirmar el pago en $[...]
         orderDetails.items.forEach(item => {
             message += `- ${encodeURIComponent(item.name)} x${item.qty} = $${money(item.price * item.qty)}%0A`;
         });
@@ -831,7 +812,8 @@ whatsappBtn.addEventListener('click', async () => {
         closeModal(orderSuccessModal);
 
     } catch (error) {
-        alert('Error al procesar el pedido: ' + (error.message || error));
+        
+        alert('Error al procesar el pedido: ' + error.message);
         console.error('Fallo en el pedido:', error);
     }
 });
@@ -855,7 +837,7 @@ installCloseBtn && installCloseBtn.addEventListener('click', () => installBanner
 // --- Funciones de DB ---
 const fetchProductsFromSupabase = async () => {
     if (!supabaseClient) {
-        console.warn('Supabase client no inicializado al intentar obtener productos.');
+        
         return []; 
     }
     try {
@@ -865,28 +847,23 @@ const fetchProductsFromSupabase = async () => {
         if (error) {
             throw error;
         }
-        return data || [];
+        return data;
     } catch (err) {
-        console.error('Error al cargar los productos:', err);
-        // No hacemos alert persistente para no bloquear la UI, solo log.
+        console.error('Error al cargar los productos:', err.message);
+        alert('Hubo un error al cargar los productos. Por favor, revisa la consola para más detalles.');
         return [];
     }
 };
 
 const loadConfigAndInitSupabase = async () => {
     try {
-        // Mostrar overlay de carga si existe (por si aún no está visible)
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'flex';
-            loadingOverlay.setAttribute('aria-hidden', 'false');
-        }
-
-        const response = await fetch('/api/get-config');
+        
+        const response = await fetch('api/get-config');
         
         if (!response.ok) {
             const errorText = await response.text();
             console.error('Error del API Route api/get-config:', errorText);
-            throw new Error(`Fallo al cargar la configuración: ${response.status} ${response.statusText}`);
+            throw new Error(`Fallo al cargar la configuración desde V: ${response.status} ${response.statusText}`);
         }
         
         const config = await response.json();
@@ -898,28 +875,11 @@ const loadConfigAndInitSupabase = async () => {
         SB_URL = config.url;
         SB_ANON_KEY = config.anonKey;
 
-        // Intentar crear el cliente Supabase de forma robusta:
-        if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
-          supabaseClient = window.supabase.createClient(SB_URL, SB_ANON_KEY);
-        } else {
-          // Fallback: intentar import dinámico ESM
-          supabaseClient = await createClientDynamic(SB_URL, SB_ANON_KEY);
-        }
-
-        if (!supabaseClient) {
-          throw new Error('No se pudo inicializar el cliente de Supabase (createClient).');
-        }
+        
+        supabaseClient = createClient(SB_URL, SB_ANON_KEY);
 
         products = await fetchProductsFromSupabase();
         if (products.length > 0) {
-            showDefaultSections();
-            generateCategoryCarousel();
-            try {
-              showImageHints(featuredContainer);
-              enableTouchHints();
-            } catch(e) {}
-        } else {
-            // aún debemos mostrar secciones vacías (si no hay productos)
             showDefaultSections();
             generateCategoryCarousel();
         }
@@ -933,15 +893,9 @@ const loadConfigAndInitSupabase = async () => {
     } catch (error) {
         console.error('Error FATAL al iniciar la aplicación:', error);
         
-        // Ocultar overlay de carga
-        if (loadingOverlay) {
-            loadingOverlay.style.display = 'none';
-            loadingOverlay.setAttribute('aria-hidden', 'true');
-        }
-
         const loadingMessage = document.createElement('div');
-        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;padding:24px;z-index:9999';
-        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno o error en conexión).';
+        loadingMessage.style = 'position:fixed;top:0;left:0;width:100%;height:100%;background:white;display:flex;align-items:center;justify-content:center;color:red;font-weight:bold;text-align:center;[...]
+        loadingMessage.textContent = 'ERROR DE INICIALIZACIÓN: No se pudo cargar la configuración de la tienda. Revisa la consola para más detalles (Faltan variables de entorno en Vercel).';
         document.body.appendChild(loadingMessage);
     }
 };
@@ -971,6 +925,7 @@ carouselImagesContainer && carouselImagesContainer.addEventListener('click', (e)
 // Cerrar overlay imagen al hacer click afuera de la imagen o en el botón X
 if (imageZoomOverlay) {
   imageZoomOverlay.addEventListener('click', (e) => {
+    // si clic en background o en close button -> cerrar
     if (e.target === imageZoomOverlay || e.target.classList.contains('zoom-close')) {
       imageZoomOverlay.style.display = 'none';
       imageZoomOverlay.setAttribute('aria-hidden', 'true');
@@ -986,6 +941,7 @@ if (imageZoomOverlay) {
     });
   }
 
+  // Si el usuario hace click sobre la imagen también cerramos (toque para cerrar)
   imageZoomImg && imageZoomImg.addEventListener('click', () => {
     imageZoomOverlay.style.display = 'none';
     imageZoomOverlay.setAttribute('aria-hidden', 'true');

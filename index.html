@@ -84,7 +84,7 @@
 </head>
 <body>
     <!-- Loading overlay: se muestra mientras la app se inicializa -->
-    <div id="loading-overlay" class="loading-overlay" aria-hidden="false">
+    <div id="loading-overlay" class="loading-overlay" aria-hidden="false" style="display:flex">
       <div class="loading-card" role="status" aria-live="polite">
         <div class="spinner" aria-hidden="true"></div>
         <div class="loading-text">Cargando...</div>
@@ -93,7 +93,7 @@
 
     <!-- Image zoom overlay para ampliar la imagen del modal -->
     <div id="imageZoomOverlay" class="image-zoom-overlay" aria-hidden="true">
-      <button class="modal-close zoom-close" aria-label="Cerrar imagen">&times;</button>
+      <button id="zoom-close-btn" class="modal-close zoom-close" aria-label="Cerrar imagen">&times;</button>
       <img id="imageZoomImg" src="" alt="Imagen ampliada" />
       <div class="zoom-hint-text">Toca la imagen o pulsa Esc para cerrar</div>
     </div>
