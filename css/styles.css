@@ -997,19 +997,3 @@ body {
   cursor: pointer;
   z-index: 10;
 }
-
-.zoom-hint {
-  color: #fff;
-  font-size: 0.95rem;
-  background: rgba(0,0,0,0.35);
-  padding: 0px 2px;
-  border-radius: 8px;
-}
-
-.zoom-hint hover {
-  color: #fff;
-  font-size: 0.95rem;
-  background: rgba(255,255,255,1);
-  padding: 0px 2px;
-  border-radius: 8px;
-}
