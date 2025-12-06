@@ -732,11 +732,11 @@ whatsappBtn.addEventListener('click', async () => {
         }
 
         const whatsappNumber = '573227671829';
-        let message = `Hola mi nombre es ${orderDetails.name}.%0AHe realizado un pedido para la dirección ${orderDetails.address}.%0ADetalles:%0A`;
+        let message = `Hola mi nombre es ${orderDetails.name}.He realizado un pedido para la dirección ${orderDetails.address}.ADetalles: `;
         orderDetails.items.forEach(item => {
-            message += `- ${item.name} x${item.qty} = $${money(item.price * item.qty)}%0A`;
+            message += `- ${item.name} x${item.qty} = $${money(item.price * item.qty)} `;
         });
-        message += `%0ATotal: $${money(orderDetails.total)}`;
+        message += `Total: $${money(orderDetails.total)}`;
         const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
         window.open(link, '_blank');
 
