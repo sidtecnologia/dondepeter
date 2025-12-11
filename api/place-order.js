@@ -22,6 +22,7 @@ export default async (req, res) => {
       return res.status(400).json({ error: 'Datos de la orden inválidos o vacíos.' });
     }
 
+    // 1. Validar y actualizar stock de forma segura
     const updates = orderDetails.items.map(item => {
         const product = currentProducts.find(p => p.id === item.id);
 
@@ -35,6 +36,7 @@ export default async (req, res) => {
 
         const newStock = product.stock - item.qty;
 
+        // Actualizar el stock
         return supabase
             .from('products')
             .update({ stock: newStock })
@@ -50,6 +52,7 @@ export default async (req, res) => {
         }
     }
 
+    // 2. Guardar el pedido en la tabla 'orders'
     const orderData = {
         customer_name: orderDetails.name,
         customer_address: orderDetails.address,
@@ -69,6 +72,7 @@ export default async (req, res) => {
 
   } catch (error) {
     console.error('Error en la API de orden:', error.message);
+    // Si la transacción falla, retornar error 500
     res.status(500).json({ error: error.message });
   }
 };
