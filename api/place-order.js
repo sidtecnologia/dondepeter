@@ -1,21 +1,26 @@
 import { createClient } from '@supabase/supabase-js';
 
+
 export default async (req, res) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Método no permitido' });
   }
 
- 
+  // Estas variables deben ser configuradas en el entorno de tu servidor (e.g., Vercel)
   const supabaseUrl = process.env.SB_URL;
+  // CRÍTICO: Usar la clave de "Service Role" (Admin) para actualizar stock de forma segura
   const supabaseServiceRoleKey = process.env.SB_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseServiceRoleKey) {
-    return res.status(500).json({ error: 'Error de configuración del servidor. Faltan claves.' });
+    return res.status(500).json({ error: 'Error de configuración del servidor. Faltan claves privadas.' });
   }
 
   try {
+    // Inicializa Supabase con la Service Role Key
+    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey, {
+      auth: { persistSession: false },
+    });
     
-    const supabase = createClient(supabaseUrl, supabaseServiceRoleKey);
     const { orderDetails, products: currentProducts } = req.body;
 
     if (!orderDetails || !orderDetails.items || orderDetails.items.length === 0) {
@@ -52,27 +57,10 @@ export default async (req, res) => {
         }
     }
 
-    // 2. Guardar el pedido en la tabla 'orders'
-    const orderData = {
-        customer_name: orderDetails.name,
-        customer_address: orderDetails.address,
-        payment_method: orderDetails.payment,
-        total_amount: orderDetails.total,
-        order_items: orderDetails.items,
-        order_status: 'Pendiente'
-    };
-
-    const { error: orderError } = await supabase.from('orders').insert([orderData]);
-
-    if (orderError) {
-        throw new Error('Error al guardar el pedido: ' + orderError.message);
-    }
-
+    
     res.status(200).json({ success: true, message: 'Orden procesada con éxito.' });
-
   } catch (error) {
-    console.error('Error en la API de orden:', error.message);
-    // Si la transacción falla, retornar error 500
+    console.error('Error al procesar la orden:', error.message);
     res.status(500).json({ error: error.message });
   }
 };
