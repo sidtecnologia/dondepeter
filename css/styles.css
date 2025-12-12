@@ -101,8 +101,6 @@ body {
 }
 
 .banner-section {
-  margin: 15px;
-  border-radius: 15px;
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow);
@@ -120,6 +118,7 @@ body {
 }
 
 .banner-slide img {
+  object-fit: fill;
   width: 100%;
   height: 100%;
 }
