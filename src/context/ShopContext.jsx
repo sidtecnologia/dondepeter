@@ -12,6 +12,9 @@ export const ShopProvider = ({ children }) => {
   const [error, setError] = useState(null);
   const [isBusinessModalOpen, setBusinessModalOpen] = useState(false);
 
+  // Toasters
+  const [toasts, setToasts] = useState([]);
+
   useEffect(() => {
     fetchProducts();
   }, []);
@@ -22,10 +25,24 @@ export const ShopProvider = ({ children }) => {
       const data = await getProducts();
       setProducts(data);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || String(err));
     } finally {
       setLoading(false);
     }
+  };
+
+  // Toast helpers
+  const addToast = (message, title = '') => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2, 9);
+    const toast = { id, title, message };
+    setToasts((prev) => [toast, ...prev]);
+    // auto remove after 3.2s
+    setTimeout(() => removeToast(id), 3200);
+    return id;
+  };
+
+  const removeToast = (id) => {
+    setToasts((prev) => prev.filter(t => t.id !== id));
   };
 
   const addToCart = (product, qty) => {
@@ -38,12 +55,15 @@ export const ShopProvider = ({ children }) => {
     }
 
     if (existing) {
-      setCart(cart.map(item => 
+      setCart(cart.map(item =>
         item.id === product.id ? { ...item, qty: item.qty + qty } : item
       ));
     } else {
       setCart([...cart, { ...product, qty }]);
     }
+
+    // Mostrar toast cuando se agrega
+    addToast(`${product.name} agregado al carrito.`, 'Producto agregado');
   };
 
   const removeFromCart = (id) => {
@@ -90,12 +110,16 @@ export const ShopProvider = ({ children }) => {
       order_status: 'Pendiente'
     };
 
+    // Guardar en DB y procesar orden (service role en backend)
     await saveOrderToDB(dbOrder);
     await placeOrderAPI(orderDetails, products);
-    
-    // Refetch products to update stock in UI
+
+    // Refetch products to update stock en UI
     await fetchProducts();
-    
+
+    // Limpiar carrito
+    clearCart();
+
     return orderDetails;
   };
 
@@ -110,8 +134,12 @@ export const ShopProvider = ({ children }) => {
       updateCartQty,
       clearCart,
       processOrder,
-      isBusinessModalOpen, 
-      setBusinessModalOpen
+      isBusinessModalOpen,
+      setBusinessModalOpen,
+      // toasts
+      toasts,
+      addToast,
+      removeToast
     }}>
       {children}
     </ShopContext.Provider>

@@ -9,13 +9,20 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
     const whatsappNumber = '573227671829';
     let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}. Detalles: `;
     orderDetails.items.forEach(item => {
-        message += `---- ${item.name} x${item.qty} = $${formatMoney(item.price * item.qty)} `;
+      message += `---- ${item.name} x${item.qty} = $${formatMoney(item.price * item.qty)} `;
     });
     message += `Total: $${formatMoney(orderDetails.total)}`;
-    
+
     const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
+    // Abrir en una nueva pestaña
     window.open(link, '_blank');
-    onClose();
+
+    // Cerrar modal y recargar la página automáticamente después de una pequeña espera
+    if (onClose) onClose();
+    // recargar para reflejar estado inicial y limpiar UI; esperar 800ms para que se abra WhatsApp
+    setTimeout(() => {
+      window.location.reload();
+    }, 800);
   };
 
   return (
@@ -28,19 +35,19 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
           <h3 className="text-xl font-bold text-gray-800">¡Tu comida está casi lista!</h3>
           <p className="text-gray-500 mt-2">Tu pedido se está preparando. Confirma el pago por WhatsApp para despachar.</p>
         </div>
-        
+
         <div className="bg-gray-100 p-4 rounded-xl">
-           <p className="text-lg font-bold">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
+          <p className="text-lg font-bold">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
         </div>
 
-        <button 
+        <button
           onClick={handleWhatsApp}
           className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
         >
-          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-6 h-6"/>
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-6 h-6" />
           Confirmar por WhatsApp
         </button>
-        
+
         <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">
           Cancelar y volver al menú
         </button>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { ShopProvider, useShop } from './context/ShopContext';
 import Navbar from './components/Navbar';
 import ProductCard from './components/ProductCard';
@@ -9,6 +9,7 @@ import SuccessModal from './components/SuccessModal';
 import BusinessModal from './components/BusinessModal';
 import InstallPrompt from './components/InstallPrompt';
 import BannerCarousel from './components/BannerCarousel';
+import Toasts from './components/Toast';
 import { Loader2 } from 'lucide-react';
 
 // Helper shuffle
@@ -69,8 +70,8 @@ const StoreContent = () => {
   // randomized featured state -> re-randomize on mount, products change, or when selecting 'Todo'
   const [featured, setFeatured] = useState(() => shuffleArray(featuredBase));
 
-  useEffect(() => {
-    // When products change, randomize
+  // when products change, randomize
+  useMemo(() => {
     setFeatured(shuffleArray(featuredBase));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length]);
@@ -108,7 +109,7 @@ const StoreContent = () => {
       <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
 
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <BannerCarousel images={banners} autoPlay={false} />
+        <BannerCarousel images={banners} speed={48} />
 
         <Categories
           categories={categories}
@@ -191,6 +192,9 @@ const StoreContent = () => {
 
       {/* Install prompt (PWA) */}
       <InstallPrompt />
+
+      {/* Toasts */}
+      <Toasts />
     </div>
   );
 };
