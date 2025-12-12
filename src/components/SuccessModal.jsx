@@ -14,13 +14,14 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
     message += `Total: $${formatMoney(orderDetails.total)}`;
 
     const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-    // Abrir en una nueva pestaña
-    window.open(link, '_blank');
+    // Abrir en nueva pestaña/ventana
+    window.open(link, '_blank', 'noopener,noreferrer');
 
-    // Cerrar modal y recargar la página automáticamente después de una pequeña espera
+    // Cerrar modal (sin recargar aún)
     if (onClose) onClose();
-    // recargar para reflejar estado inicial y limpiar UI; esperar 800ms para que se abra WhatsApp
-    setTimeout(() => {
+
+   
+   setTimeout(() => {
       window.location.reload();
     }, 800);
   };
@@ -49,7 +50,7 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
         </button>
 
         <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">
-          Cancelar y volver al menú
+          Cerrar y volver al menú
         </button>
       </div>
     </Modal>

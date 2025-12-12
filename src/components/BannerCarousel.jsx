@@ -250,7 +250,7 @@ const BannerCarousel = ({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
                 {i === 1 && (
-                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">La mejor comida rápida de Bucaramanga</h2>
+                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg"></h2>
                 )}
               </div>
             </div>
