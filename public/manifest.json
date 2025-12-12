@@ -1,0 +1,15 @@
+{
+  "short_name": "COMIDA",
+  "name": "Comida Rápida - Menú",
+  "icons": [
+    {
+      "src": "/img/favicon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2769f4"
+}
