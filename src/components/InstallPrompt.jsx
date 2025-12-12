@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 
 /**
- * InstallPrompt
- * - Escucha `beforeinstallprompt` y muestra un banner discreto
- * - Cuando el usuario acepta, dispara prompt() y oculta el banner.
+ * InstallPrompt mejorado:
+ * - Escucha 'beforeinstallprompt' y también el evento custom 'deferredPromptReady' (empaquetado desde main.jsx)
+ * - Además revisa window.deferredPrompt al montar por si ya fue capturado.
  */
 const InstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
@@ -11,23 +11,51 @@ const InstallPrompt = () => {
 
   useEffect(() => {
     const onBeforeInstall = (e) => {
-      e.preventDefault(); // evita el prompt automático
+      e.preventDefault();
+      // guarda prompt y muestra banner
+      window.deferredPrompt = e;
       setDeferredPrompt(e);
       setVisible(true);
     };
 
-    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    const onDeferredReady = () => {
+      // main.jsx puede haber guardado el event en window.deferredPrompt
+      if (window.deferredPrompt) {
+        setDeferredPrompt(window.deferredPrompt);
+        setVisible(true);
+      }
+    };
 
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('beforeinstallprompt', onBeforeInstall);
+    window.addEventListener('deferredPromptReady', onDeferredReady);
+
+    // si el evento ya fue capturado por main.jsx antes de montar
+    if (window.deferredPrompt) {
+      setDeferredPrompt(window.deferredPrompt);
+      setVisible(true);
+    }
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall);
+      window.removeEventListener('deferredPromptReady', onDeferredReady);
+    };
   }, []);
 
   const handleInstall = async () => {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    const choice = await deferredPrompt.userChoice;
-    // choice.outcome === 'accepted' | 'dismissed'
-    setVisible(false);
-    setDeferredPrompt(null);
+    const promptEvent = deferredPrompt || window.deferredPrompt;
+    if (!promptEvent) return;
+    try {
+      promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      setVisible(false);
+      // borrar referencia
+      window.deferredPrompt = null;
+      setDeferredPrompt(null);
+    } catch (e) {
+      // no crítico
+      console.warn('Install prompt error', e);
+      setVisible(false);
+    }
   };
 
   if (!visible) return null;

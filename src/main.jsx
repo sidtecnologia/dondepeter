@@ -21,3 +21,12 @@ if ('serviceWorker' in navigator) {
       });
   });
 }
+
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  // prevent the automatic mini-infobar on mobile
+  e.preventDefault();
+  window.deferredPrompt = e;
+  // dispatch custom event to notify listeners (InstallPrompt)
+  window.dispatchEvent(new Event('deferredPromptReady'));
+});

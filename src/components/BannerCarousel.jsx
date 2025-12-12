@@ -1,168 +1,122 @@
 import { useRef, useEffect, useState } from 'react';
 
-
+/**
+ * Props:
+ * - images: array de URLs (required)
+ * - speed: velocidad en px/seg (default 40)
+ */
 const BannerCarousel = ({ images = [], speed = 40 }) => {
   const containerRef = useRef(null);
+  const trackRef = useRef(null);
   const rafRef = useRef(null);
   const lastTsRef = useRef(null);
-  const isDraggingRef = useRef(false);
-  const startXRef = useRef(0);
-  const startScrollRef = useRef(0);
+  const offsetRef = useRef(0);
   const [ready, setReady] = useState(false);
+  const [slideWidth, setSlideWidth] = useState(0);
 
-  // No render si no hay imágenes
   if (!images || images.length === 0) return null;
 
-  // usamos una copia triplicada para dar continuidad
-  const tripled = [...images, ...images, ...images];
-
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
+    const container = containerRef.current;
+    const track = trackRef.current;
+    if (!container || !track) return;
 
     let mounted = true;
 
     const recalc = () => {
-      // iniciar en la copia del medio
-      const slideWidth = el.clientWidth;
-      el.scrollLeft = slideWidth * images.length;
+      const w = container.clientWidth;
+      setSlideWidth(w);
+      // keep offset modulo threshold after resize
+      const threshold = w * images.length;
+      offsetRef.current = offsetRef.current % threshold;
+      // position track accordingly
+      track.style.transform = `translateX(${-offsetRef.current}px)`;
       setReady(true);
     };
 
     recalc();
+    window.addEventListener('resize', recalc);
 
-    const handleResize = () => {
-      // recalcula posición base al redimensionar
-      recalc();
-    };
-
-    window.addEventListener('resize', handleResize);
-
-    // pointer handlers (drag)
-    const onPointerDown = (e) => {
-      isDraggingRef.current = true;
-      lastTsRef.current = null; // reiniciar animación delta
-      startXRef.current = e.clientX ?? e.touches?.[0]?.clientX;
-      startScrollRef.current = el.scrollLeft;
-      el.style.scrollSnapType = 'none'; // permitir arrastre libre
-      // cancelar animación mientras arrastra
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-    };
-
-    const onPointerMove = (e) => {
-      if (!isDraggingRef.current) return;
-      const x = e.clientX ?? e.touches?.[0]?.clientX;
-      const dx = startXRef.current - x;
-      el.scrollLeft = startScrollRef.current + dx;
-      // mantener continuidad manualmente si se arrastra al límite
-      const slideW = el.clientWidth;
-      const totalSlides = tripled.length;
-      const fullWidth = slideW * totalSlides;
-      // si pasa un umbral, ajusta al centro
-      if (el.scrollLeft <= slideW * 0.5) {
-        el.scrollLeft += slideW * images.length;
-        startScrollRef.current = el.scrollLeft;
-      } else if (el.scrollLeft >= slideW * (images.length * 2 + 0.5)) {
-        el.scrollLeft -= slideW * images.length;
-        startScrollRef.current = el.scrollLeft;
-      }
-    };
-
-    const onPointerUp = () => {
-      if (!isDraggingRef.current) return;
-      isDraggingRef.current = false;
-      el.style.scrollSnapType = 'x mandatory';
-      lastTsRef.current = null;
-      // reiniciar animación
-      rafRef.current = requestAnimationFrame(step);
-    };
-
-    el.addEventListener('pointerdown', onPointerDown);
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    el.addEventListener('touchstart', onPointerDown, { passive: true });
-    el.addEventListener('touchmove', onPointerMove, { passive: true });
-    el.addEventListener('touchend', onPointerUp);
-
-    // animación perpetua
-    const pxPerMs = speed / 1000; // px por ms
+    const pxPerMs = speed / 1000;
 
     const step = (ts) => {
       if (!mounted) return;
-      if (isDraggingRef.current) {
-        rafRef.current = requestAnimationFrame(step);
-        return;
-      }
-
       if (!lastTsRef.current) lastTsRef.current = ts;
       const delta = ts - lastTsRef.current;
       lastTsRef.current = ts;
 
-      el.scrollLeft += pxPerMs * delta;
+      // advance offset
+      offsetRef.current += pxPerMs * delta;
 
-      const slideW = el.clientWidth;
-      // límites para resetear (cuando llegamos a la copia final)
-      const leftReset = slideW * images.length * 0.5;
-      const rightReset = slideW * images.length * 2.5;
-
-      if (el.scrollLeft >= rightReset) {
-        // retroceder exactamente images.length slides para mantener continuidad
-        el.scrollLeft -= slideW * images.length;
-      } else if (el.scrollLeft <= leftReset) {
-        el.scrollLeft += slideW * images.length;
+      const threshold = slideWidth * images.length || container.clientWidth * images.length;
+      if (threshold > 0 && offsetRef.current >= threshold) {
+        // wrap around to create continuity
+        offsetRef.current = offsetRef.current - threshold;
       }
+
+      // apply transform
+      if (track) track.style.transform = `translateX(${-offsetRef.current}px)`;
 
       rafRef.current = requestAnimationFrame(step);
     };
 
-    // comenzar animación
     rafRef.current = requestAnimationFrame(step);
+
+    // disable pointer interactions so it "moves solo"
+    container.style.touchAction = 'none';
+    container.style.pointerEvents = 'none';
 
     return () => {
       mounted = false;
-      window.removeEventListener('resize', handleResize);
-      el.removeEventListener('pointerdown', onPointerDown);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      el.removeEventListener('touchstart', onPointerDown);
-      el.removeEventListener('touchmove', onPointerMove);
-      el.removeEventListener('touchend', onPointerUp);
+      window.removeEventListener('resize', recalc);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      lastTsRef.current = null;
+      // re-enable pointer events when unmount
+      if (container) {
+        container.style.pointerEvents = '';
+        container.style.touchAction = '';
+      }
     };
+    // note: intentionally not including slideWidth in deps so animation smooth; resize handler updates it
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [images.join('|'), speed]);
+
+  // Render two copies of images for seamless loop
+  const items = [...images, ...images];
 
   return (
     <div className="w-full relative">
       <div
         ref={containerRef}
-        className="w-full flex overflow-x-auto snap-x snap-mandatory scrollbar-hidden rounded-2xl shadow-lg"
-        style={{ scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch' }}
+        className="w-full overflow-hidden rounded-2xl shadow-lg"
         aria-hidden={!ready}
       >
-        {tripled.map((src, idx) => (
-          <div
-            key={idx}
-            className="flex-shrink-0 w-full snap-center relative"
-            style={{ minWidth: '100%' }}
-          >
-            <img
-              src={src}
-              alt={`Banner ${idx % images.length}`}
-              className="w-full object-cover min-h-[150px] md:min-h-[300px] h-full"
-              loading="lazy"
-            />
-            {/* contenido decorativo superpuesto */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
-              {idx % images.length === 0 && (
-                <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">La Mejor Comida Rápida de Bucaramanga</h2>
-              )}
+        <div
+          ref={trackRef}
+          className="flex will-change-transform"
+          style={{ transition: 'transform 0s linear' }}
+        >
+          {items.map((src, idx) => (
+            <div
+              key={idx}
+              className="flex-shrink-0 w-full relative"
+              style={{ minWidth: '100%' }}
+              aria-hidden="true"
+            >
+              <img
+                src={src}
+                alt={`Banner ${idx % images.length + 1}`}
+                className="w-full object-cover min-h-[150px] md:min-h-[300px] h-full"
+                loading="lazy"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
+                {idx % images.length === 0 && (
+                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </div>
   );
