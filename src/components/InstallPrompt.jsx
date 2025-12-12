@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
 
-/**
- * InstallPrompt mejorado:
- * - Escucha 'beforeinstallprompt' y también el evento custom 'deferredPromptReady' (empaquetado desde main.jsx)
- * - Además revisa window.deferredPrompt al montar por si ya fue capturado.
- */
+
+
 const InstallPrompt = () => {
   const [deferredPrompt, setDeferredPrompt] = useState(null);
   const [visible, setVisible] = useState(false);
@@ -64,10 +61,10 @@ const InstallPrompt = () => {
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl bg-white rounded-2xl shadow-lg p-4 flex items-center gap-4">
       <div className="flex-1 text-left">
         <p className="font-semibold">Instala la app</p>
-        <p className="text-sm text-gray-500">Agrega esta app a tu dispositivo para acceder más rápido.</p>
+        <p className="text-sm text-gray-500">¿Agregar a la pagina principal?</p>
       </div>
       <div className="flex items-center gap-2">
-        <button onClick={() => setVisible(false)} className="px-3 py-2 rounded-lg bg-gray-100">Más tarde</button>
+        <button onClick={() => setVisible(false)} className="px-3 py-2 rounded-lg bg-gray-100">Después</button>
         <button onClick={handleInstall} className="px-4 py-2 rounded-lg bg-primary text-white font-semibold">Instalar</button>
       </div>
     </div>

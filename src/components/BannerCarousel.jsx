@@ -111,7 +111,7 @@ const BannerCarousel = ({ images = [], speed = 40 }) => {
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
                 {idx % images.length === 0 && (
-                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
+                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg"></h2>
                 )}
               </div>
             </div>
