@@ -5,8 +5,8 @@ const ProductCard = ({ product, onClick }) => {
   const isOutOfStock = !product.stock || product.stock <= 0;
 
   return (
-    <div 
-      className={`bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-transparent hover:border-gray-100 relative ${isOutOfStock ? 'opacity-75 grayscale' : ''}`}
+    <div
+      className={`bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden group cursor-pointer border border-transparent hover:border-gray-100 relative ${isOutOfStock ? 'opacity-70' : ''}`}
       onClick={() => onClick(product)}
     >
       {product.bestSeller && (
@@ -14,7 +14,7 @@ const ProductCard = ({ product, onClick }) => {
           Más Vendido
         </span>
       )}
-      
+
       {isOutOfStock && (
         <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20">
           <span className="bg-red-600 text-white px-4 py-1 rounded-full font-bold shadow-lg transform -rotate-12">AGOTADO</span>
@@ -22,8 +22,8 @@ const ProductCard = ({ product, onClick }) => {
       )}
 
       <div className="relative aspect-square overflow-hidden bg-gray-100">
-        <img 
-          src={product.image?.[0] || '/img/placeholder.png'} 
+        <img
+          src={product.image?.[0] || '/img/placeholder.png'}
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
           loading="lazy"

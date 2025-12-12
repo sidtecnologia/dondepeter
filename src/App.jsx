@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ShopProvider, useShop } from './context/ShopContext';
 import Navbar from './components/Navbar';
 import ProductCard from './components/ProductCard';
@@ -7,37 +7,37 @@ import CartModal from './components/CartModal';
 import CheckoutModal from './components/CheckoutModal';
 import SuccessModal from './components/SuccessModal';
 import BusinessModal from './components/BusinessModal';
+import InstallPrompt from './components/InstallPrompt';
+import BannerCarousel from './components/BannerCarousel';
 import { Loader2 } from 'lucide-react';
+
+// Helper shuffle
+const shuffleArray = (arr) => {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
 
 const Categories = ({ categories, selected, onSelect }) => (
   <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-4 scrollbar-hide">
-    <button 
+    <button
       onClick={() => onSelect('Todo')}
-      className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+      className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
     >
       <span className="font-semibold">Todo</span>
     </button>
     {categories.map(cat => (
-      <button 
+      <button
         key={cat}
         onClick={() => onSelect(cat)}
-        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
       >
         <span className="font-semibold whitespace-nowrap">{cat}</span>
       </button>
     ))}
-  </div>
-);
-
-const Banner = () => (
-  <div className="w-full overflow-hidden rounded-2xl shadow-lg mb-8 relative group">
-    <div className="flex animate-carousel">
-        {/* Simulación visual del carrusel original, en producción usar librería tipo Embla o Swiper */}
-        <img src="https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp" className="w-full object-cover min-h-[150px] md:min-h-[300px]" alt="Banner" />
-    </div>
-    <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6">
-      <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
-    </div>
   </div>
 );
 
@@ -51,8 +51,11 @@ const StoreContent = () => {
   const [successOrder, setSuccessOrder] = useState(null);
 
   // Derivar categorías y productos filtrados
-  const categories = useMemo(() => [...new Set(products.map(p => p.category))], [products]);
-  
+  const categories = useMemo(() => {
+    const cats = [...new Set(products.map(p => p.category))];
+    return cats.filter(Boolean);
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -61,7 +64,25 @@ const StoreContent = () => {
     });
   }, [products, searchTerm, selectedCategory]);
 
-  const featured = useMemo(() => products.filter(p => p.featured), [products]);
+  // featured: base set
+  const featuredBase = useMemo(() => products.filter(p => p.featured), [products]);
+  // randomized featured state -> re-randomize on mount, products change, or when selecting 'Todo'
+  const [featured, setFeatured] = useState(() => shuffleArray(featuredBase));
+
+  useEffect(() => {
+    // When products change, randomize
+    setFeatured(shuffleArray(featuredBase));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [products.length]);
+
+  // Re-randomize when user selects category 'Todo'
+  const handleSelectCategory = (cat) => {
+    setSelectedCategory(cat);
+    if (cat === 'Todo') {
+      setFeatured(prev => shuffleArray(featuredBase));
+    }
+  };
+
   const offers = useMemo(() => products.filter(p => p.isOffer), [products]);
 
   if (loading) return (
@@ -75,17 +96,24 @@ const StoreContent = () => {
 
   const showSections = searchTerm === '' && selectedCategory === 'Todo';
 
+  // Banners (puedes agregar más imágenes)
+  const banners = [
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner2.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner3.webp'
+  ];
+
   return (
     <div className="min-h-screen pb-20">
       <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
-      
+
       <main className="max-w-6xl mx-auto px-4 py-6">
-        <Banner />
-        
-        <Categories 
-          categories={categories} 
-          selected={selectedCategory} 
-          onSelect={setSelectedCategory} 
+        <BannerCarousel images={banners} autoPlay={false} />
+
+        <Categories
+          categories={categories}
+          selected={selectedCategory}
+          onSelect={handleSelectCategory}
         />
 
         <div className="mt-8">
@@ -102,7 +130,7 @@ const StoreContent = () => {
                   </div>
                 </section>
               )}
-              
+
               {offers.length > 0 && (
                 <section>
                   <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
@@ -135,31 +163,34 @@ const StoreContent = () => {
       </footer>
 
       {/* Modales */}
-      <ProductModal 
-        product={activeProduct} 
-        isOpen={!!activeProduct} 
-        onClose={() => setActiveProduct(null)} 
+      <ProductModal
+        product={activeProduct}
+        isOpen={!!activeProduct}
+        onClose={() => setActiveProduct(null)}
       />
-      
-      <CartModal 
-        isOpen={isCartOpen} 
-        onClose={() => setIsCartOpen(false)} 
+
+      <CartModal
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
         onCheckout={() => setIsCheckoutOpen(true)}
       />
 
-      <CheckoutModal 
-        isOpen={isCheckoutOpen} 
+      <CheckoutModal
+        isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         onSuccess={(details) => setSuccessOrder(details)}
       />
 
-      <SuccessModal 
+      <SuccessModal
         isOpen={!!successOrder}
         onClose={() => setSuccessOrder(null)}
         orderDetails={successOrder}
       />
 
       <BusinessModal />
+
+      {/* Install prompt (PWA) */}
+      <InstallPrompt />
     </div>
   );
 };

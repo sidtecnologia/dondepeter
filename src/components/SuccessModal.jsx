@@ -42,7 +42,7 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
         </button>
         
         <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">
-          Cerrar y volver al menú
+          Cancelar y volver al menú
         </button>
       </div>
     </Modal>

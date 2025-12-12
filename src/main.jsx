@@ -8,3 +8,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     <App />
   </React.StrictMode>,
 )
+
+// Service Worker registration for PWA (only in production and if supported)
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('Service worker registrado:', reg);
+      })
+      .catch(err => {
+        console.warn('Error registrando service worker:', err);
+      });
+  });
+}
