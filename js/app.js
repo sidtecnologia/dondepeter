@@ -526,7 +526,7 @@ window.addEventListener('resize', updateCarouselPosition);
 function updateCart() {
     cartItemsContainer.innerHTML = '';
     if (cart.length === 0) {
-        cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Tu carrito está vacío.</p>';
+        cartItemsContainer.innerHTML = '<p class="empty-cart-msg">Aún no hay pedido.</p>';
         cartBadge.style.display = 'none';
         cartBadge.textContent = '0';
         cartTotalElement.textContent = money(0);
@@ -644,7 +644,7 @@ cartBtn.addEventListener('click', () => {
 
 checkoutBtn.addEventListener('click', () => {
     if (cart.length === 0) {
-        alert('El carrito está vacío');
+        alert('Aún no hay pedido');
         return;
     }
     showModal(checkoutModal);
