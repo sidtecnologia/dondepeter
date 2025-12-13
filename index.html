@@ -2,14 +2,70 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Comida Rápida</title>
-
-    <!-- PWA manifest & theme -->
-    <link rel="manifest" href="/manifest.json" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Menú Digital | Comida Rápida en Bucaramanga</title>
+    <meta name="description" content="Consulta el menú digital de Comida Rápida. Pide las mejores hamburguesas, perros calientes y comida rápida en Bucaramanga. ¡Haz tu pedido a domicilio!">
+    <meta name="keywords" content="Comida Rápida, comida rápida bucaramanga, menú digital, hamburguesas, perros calientes, domicilio santander">
+    <link rel="canonical" href="https://comidarapida.vercel.app/" />
+    <meta property="og:title" content="Menú Digital | Comida Rápida en Bucaramanga" />
+    <meta property="og:description" content="Pide las mejores hamburguesas, perros calientes y más. ¡Consulta nuestro menú y haz tu pedido a domicilio!" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://comidarapida.vercel.app/" />
+    <meta property="og:image" content="https://comidarapida.vercel.app/img/favicon.png" />
+    <meta property="og:image:alt" content="Logo de Comida Rápida Comida Rápida" />
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Menú Digital Comida Rápida">
+    <meta name="twitter:description" content="Pide las mejores hamburguesas, perros calientes y más. ¡Consulta nuestro menú!">
+    <meta name="twitter:image" content="https://comidarapida.vercel.app/img/favicon.png">
+    <link rel="manifest" href="./manifest.json" />
     <meta name="theme-color" content="#2563EB" />
-    <link rel="icon" href="/img/favicon.png" />
-  </head>
+    <link rel="icon" href="https://comidarapida.vercel.app/img/favicon.png" />
+    <link rel="apple-touch-icon" href="https://comidarapida.vercel.app/img/favicon.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"/>
+    <script charset="UTF-8" src="//web.webpushs.com/js/push/1ed281446e2e741d69c9c9a386b5a047_1.js" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      "name": "Comida Rápida",
+      "image": "https://comidarapida.vercel.app/img/favicon.png",
+      "url": "https://comidarapida.vercel.app/",
+      "telephone": "+57-3227671829",
+      "servesCuisine": "Comida Rápida",
+      "priceRange": "$$$",
+      "menu": "https://comidarapida.vercel.app/",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Carrera 27 # 10-50",
+        "addressLocality": "Bucaramanga",
+        "addressRegion": "Santander",
+        "postalCode": "680001",
+        "addressCountry": "CO"
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": [
+            "Monday",
+            "Tuesday",
+            "Wednesday",
+            "Thursday",
+            "Friday",
+            "Saturday",
+            "Sunday"
+          ],
+          "opens": "17:00",
+          "closes": "23:00"
+        }
+      ]
+    }
+    </script>
+</head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>

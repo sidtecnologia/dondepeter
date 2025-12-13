@@ -60,7 +60,7 @@ const InstallPrompt = () => {
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-xl bg-white rounded-2xl shadow-lg p-4 flex items-center gap-4">
       <div className="flex-1 text-left">
-        <p className="font-semibold">Instala la app</p>
+        <p className="font-semibold">Instala nuestra app</p>
         <p className="text-sm text-gray-500">¿Agregar a la pagina principal?</p>
       </div>
       <div className="flex items-center gap-2">
