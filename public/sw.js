@@ -1,20 +1,16 @@
 try {
   importScripts('/sp-push-worker-fb.js');
-} catch (e) {
+} catch (e) {}
 
-}
-
-const CACHE_NAME = 'dondepeter-cache-v1';
+const CACHE_NAME = 'comidarapida-cache-v2';
 const ASSETS = [
   '/',
   '/index.html',
   '/src/main.jsx',
   '/src/index.css',
   '/favicon.ico',
-
 ];
 
-// Install: cache assets
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -22,7 +18,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: limpiar caches antiguos
 self.addEventListener('activate', (event) => {
   self.clients.claim();
   event.waitUntil(
@@ -35,7 +30,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: responder desde cache, fallback a network
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
@@ -43,8 +37,6 @@ self.addEventListener('fetch', (event) => {
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
       return fetch(event.request).then((res) => {
-        // Opcional: cache responses de algunos tipos
-        // clone response
         try {
           const resClone = res.clone();
           if (event.request.url.startsWith(self.location.origin)) {
@@ -53,7 +45,6 @@ self.addEventListener('fetch', (event) => {
         } catch (e) {}
         return res;
       }).catch(() => {
-        // fallback a index.html para navegación SPA
         if (event.request.mode === 'navigate') {
           return caches.match('/index.html');
         }
@@ -61,7 +52,6 @@ self.addEventListener('fetch', (event) => {
     })
   );
 });
-
 
 self.addEventListener('push', (event) => {
   let payload = {};
@@ -80,4 +70,10 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });
