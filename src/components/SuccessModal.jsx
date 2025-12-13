@@ -12,7 +12,7 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
 
   const handleWhatsApp = async () => {
     const whatsappNumber = '573227671829';
-    let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}. Detalles: `;
+    let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}, para pagar con ${orderDetails.payment}. Detalles: `;
     orderDetails.items.forEach(item => {
       message += `---- ${item.name} x${item.qty} = $${formatMoney(item.price * item.qty)} `;
     });
@@ -34,7 +34,7 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
       // Después de un pequeño delay, recargar la página para garantizar estado limpio (opcional)
       setTimeout(() => {
         window.location.reload();
-      }, 800);
+      }, 1000);
     } catch (err) {
       // Si hay error al confirmar, se notifica y no se recarga
       console.error('No se pudo confirmar el pedido antes de enviar WhatsApp:', err);

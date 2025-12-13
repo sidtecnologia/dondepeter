@@ -1,8 +1,8 @@
 try {
   importScripts('/sp-push-worker-fb.js');
-} catch (e) {}
+} catch (e) { }
 
-const CACHE_NAME = 'comidarapida-cache-v2.1';
+const CACHE_NAME = 'comidarapida-cache-v2.2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -40,9 +40,9 @@ self.addEventListener('fetch', (event) => {
         try {
           const resClone = res.clone();
           if (event.request.url.startsWith(self.location.origin)) {
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone)).catch(() => {});
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, resClone)).catch(() => { });
           }
-        } catch (e) {}
+        } catch (e) { }
         return res;
       }).catch(() => {
         if (event.request.mode === 'navigate') {

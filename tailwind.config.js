@@ -9,7 +9,7 @@ export default {
     // La clave es la sección 'extend' con 'colors'
     extend: {
       colors: {
-        primary: '#2769f4', // <--- ESTA LÍNEA ES CRUCIAL
+        primary: '#2769f4',
         secondary: '#1a1a1a',
       },
       fontFamily: {

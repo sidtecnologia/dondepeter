@@ -30,15 +30,15 @@ const ProductModal = ({ product, isOpen, onClose }) => {
       <div className="space-y-6">
         {/* Carousel Simple */}
         <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-100">
-          <img 
-            src={images[imgIndex]} 
-            alt={product.name} 
+          <img
+            src={images[imgIndex]}
+            alt={product.name}
             className="w-full h-full object-cover"
           />
           {images.length > 1 && (
             <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-2">
               {images.map((_, idx) => (
-                <button 
+                <button
                   key={idx}
                   onClick={() => setImgIndex(idx)}
                   className={`w-2 h-2 rounded-full transition-all ${idx === imgIndex ? 'bg-white w-4' : 'bg-white/50'}`}
@@ -56,14 +56,14 @@ const ProductModal = ({ product, isOpen, onClose }) => {
 
         <div className="flex items-center justify-between gap-4 pt-4 border-t">
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
-            <button 
+            <button
               onClick={() => setQty(Math.max(1, qty - 1))}
               className="p-3 hover:bg-white rounded-md transition shadow-sm"
             >
               <Minus size={18} />
             </button>
             <span className="w-12 text-center font-bold text-lg">{qty}</span>
-            <button 
+            <button
               onClick={() => setQty(qty + 1)}
               className="p-3 hover:bg-white rounded-md transition shadow-sm"
             >
@@ -71,7 +71,7 @@ const ProductModal = ({ product, isOpen, onClose }) => {
             </button>
           </div>
 
-          <button 
+          <button
             onClick={handleAddToCart}
             disabled={!product.stock || product.stock < qty}
             className="flex-1 btn-primary flex items-center justify-center gap-2"
