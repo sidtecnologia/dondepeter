@@ -91,6 +91,7 @@ export const ShopProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
+  
   const processOrder = async (customerData) => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
     const orderDetails = {
@@ -101,26 +102,43 @@ export const ShopProvider = ({ children }) => {
       total
     };
 
-    const dbOrder = {
-      customer_name: customerData.name,
-      customer_address: customerData.address,
-      payment_method: customerData.payment,
-      total_amount: total,
-      order_items: cart,
-      order_status: 'Pendiente'
-    };
-
-    // Guardar en DB y procesar orden (service role en backend)
-    await saveOrderToDB(dbOrder);
-    await placeOrderAPI(orderDetails, products);
-
-    // Refetch products to update stock en UI
-    await fetchProducts();
-
-    // Limpiar carrito
-    clearCart();
-
     return orderDetails;
+  };
+
+  
+  const confirmOrder = async (orderDetails) => {
+    try {
+      // Construir payload para la DB (adaptar campos según tu tabla)
+      const dbOrder = {
+        customer_name: orderDetails.name,
+        customer_address: orderDetails.address,
+        payment_method: orderDetails.payment,
+        total_amount: orderDetails.total,
+        order_items: orderDetails.items,
+        order_status: 'Pendiente'
+      };
+
+      // Guardar en orders (DB)
+      await saveOrderToDB(dbOrder);
+
+      // Llamar al endpoint que actualiza stock en backend (usa Service Role)
+      await placeOrderAPI(orderDetails, products);
+
+      // Refrescar productos para reflejar stock actualizado
+      await fetchProducts();
+
+      // Limpiar carrito solo después de confirmar y procesar la orden
+      clearCart();
+
+      // Notificar éxito
+      addToast('Pedido confirmado y enviado correctamente.', 'Pedido enviado');
+
+      return true;
+    } catch (err) {
+      console.error('Error confirmando orden:', err);
+      addToast('Error al confirmar el pedido: ' + (err.message || err), 'Error');
+      throw err;
+    }
   };
 
   return (
@@ -133,7 +151,8 @@ export const ShopProvider = ({ children }) => {
       removeFromCart,
       updateCartQty,
       clearCart,
-      processOrder,
+      processOrder,   // preparar orden (sin persistir)
+      confirmOrder,   // confirmar/persistir orden (llamar al backend)
       isBusinessModalOpen,
       setBusinessModalOpen,
       // toasts
