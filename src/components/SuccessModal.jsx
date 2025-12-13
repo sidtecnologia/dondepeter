@@ -12,31 +12,34 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
 
   const handleWhatsApp = async () => {
     const whatsappNumber = '573227671829';
-    let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}, para pagar con ${orderDetails.payment}. Detalles: `;
+
+    let message = `Hola, mi nombre es *${orderDetails.name}*.\n`;
+    message += `Quiero confirmar un pedido para la dirección *${orderDetails.address}*, para pagar con *${orderDetails.payment}*.\n\n`;
+    message += `*Detalles del pedido:*\n`;
+
     orderDetails.items.forEach(item => {
-      message += `---- ${item.name} x${item.qty} = $${formatMoney(item.price * item.qty)} `;
+
+      message += `• ${item.name} (x${item.qty}) --- $${formatMoney(item.price * item.qty)}\n`;
     });
-    message += `Total: $${formatMoney(orderDetails.total)}`;
+
+    message += `\n*Total: $${formatMoney(orderDetails.total)}*`;
 
     const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
     try {
       setLoading(true);
-      // Primero confirmar/persistir la orden en backend (solo se hace cuando el usuario confirma)
+
       await confirmOrder(orderDetails);
 
-      // Abrir WhatsApp en nueva pestaña/ventana
       window.open(link, '_blank', 'noopener,noreferrer');
 
-      // Cerrar modal
       if (onClose) onClose();
 
-      // Después de un pequeño delay, recargar la página para garantizar estado limpio (opcional)
       setTimeout(() => {
         window.location.reload();
       }, 1000);
+
     } catch (err) {
-      // Si hay error al confirmar, se notifica y no se recarga
       console.error('No se pudo confirmar el pedido antes de enviar WhatsApp:', err);
       alert('No se pudo procesar el pedido. Por favor intenta de nuevo más tarde.');
     } finally {
