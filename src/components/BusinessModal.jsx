@@ -18,7 +18,7 @@ const BusinessModal = () => {
         
         <div>
           <h2 className="text-2xl font-bold text-gray-800">Comida Rápida</h2>
-          <p className="text-gray-500">Las mejores hamburguesas y perros calientes.</p>
+          <p className="text-gray-500">La mejor comida de Bucaramanga.</p>
         </div>
 
         <div className="space-y-4 text-left bg-gray-50 p-4 rounded-xl">
