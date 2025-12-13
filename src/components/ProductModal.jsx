@@ -7,19 +7,22 @@ import { formatMoney } from '../utils/format';
 const ProductModal = ({ product, isOpen, onClose }) => {
   const [qty, setQty] = useState(1);
   const [imgIndex, setImgIndex] = useState(0);
+  const [observation, setObservation] = useState('');
   const { addToCart } = useShop();
 
   useEffect(() => {
     if (isOpen) {
       setQty(1);
       setImgIndex(0);
+      setObservation('');
     }
   }, [isOpen]);
 
   if (!product) return null;
 
   const handleAddToCart = () => {
-    addToCart(product, qty);
+    // addToCart ahora acepta tercer parámetro observation
+    addToCart(product, qty, observation?.trim());
     onClose();
   };
 
@@ -54,11 +57,24 @@ const ProductModal = ({ product, isOpen, onClose }) => {
           <p className="text-gray-600 mt-3 leading-relaxed">{product.description}</p>
         </div>
 
+        {/* Observaciones */}
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-gray-700">Observaciones (opcional)</label>
+          <textarea
+            value={observation}
+            onChange={(e) => setObservation(e.target.value)}
+            placeholder="Ej: Sin cebolla, extra picante, dejar en portería..."
+            rows={3}
+            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition resize-none"
+          />
+        </div>
+
         <div className="flex items-center justify-between gap-4 pt-4 border-t">
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
             <button
               onClick={() => setQty(Math.max(1, qty - 1))}
               className="p-3 hover:bg-white rounded-md transition shadow-sm"
+              aria-label="Disminuir cantidad"
             >
               <Minus size={18} />
             </button>
@@ -66,6 +82,7 @@ const ProductModal = ({ product, isOpen, onClose }) => {
             <button
               onClick={() => setQty(qty + 1)}
               className="p-3 hover:bg-white rounded-md transition shadow-sm"
+              aria-label="Aumentar cantidad"
             >
               <Plus size={18} />
             </button>

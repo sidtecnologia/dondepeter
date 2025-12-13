@@ -2,7 +2,7 @@ try {
   importScripts('/sp-push-worker-fb.js');
 } catch (e) { }
 
-const CACHE_NAME = 'comidarapida-cache-v2.3';
+const CACHE_NAME = 'comidarapida-cache-v2.4';
 const ASSETS = [
   '/',
   '/index.html',

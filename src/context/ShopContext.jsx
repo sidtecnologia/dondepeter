@@ -45,7 +45,13 @@ export const ShopProvider = ({ children }) => {
     setToasts((prev) => prev.filter(t => t.id !== id));
   };
 
-  const addToCart = (product, qty) => {
+  /**
+   * addToCart ahora acepta observation como tercer parámetro.
+   * Si el producto ya existe en el carrito:
+   *  - incrementa la cantidad
+   *  - si se envía una nueva observación la concatena con la existente separada por " | "
+   */
+  const addToCart = (product, qty, observation = '') => {
     const existing = cart.find(item => item.id === product.id);
     const currentQty = existing ? existing.qty : 0;
 
@@ -56,10 +62,18 @@ export const ShopProvider = ({ children }) => {
 
     if (existing) {
       setCart(cart.map(item =>
-        item.id === product.id ? { ...item, qty: item.qty + qty } : item
+        item.id === product.id
+          ? {
+            ...item,
+            qty: item.qty + qty,
+            observation: observation ?
+              (item.observation ? `${item.observation} | ${observation}` : observation)
+              : item.observation
+          }
+          : item
       ));
     } else {
-      setCart([...cart, { ...product, qty }]);
+      setCart([...cart, { ...product, qty, observation: observation || '' }]);
     }
 
     // Mostrar toast cuando se agrega
@@ -91,7 +105,10 @@ export const ShopProvider = ({ children }) => {
 
   const clearCart = () => setCart([]);
 
-  
+  /**
+   * processOrder:
+   * - Prepara los datos de la orden (sin persistir) para mostrar en el modal de confirmación.
+   */
   const processOrder = async (customerData) => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
     const orderDetails = {
@@ -105,32 +122,28 @@ export const ShopProvider = ({ children }) => {
     return orderDetails;
   };
 
-  
+  /**
+   * confirmOrder:
+   * - Llamar cuando el usuario CONFIRME el pedido (por ejemplo, al pulsar el botón de WhatsApp en SuccessModal).
+   * - Realiza: saveOrderToDB, placeOrderAPI (para actualizar stock), refetch products y limpiar carrito.
+   */
   const confirmOrder = async (orderDetails) => {
     try {
-      // Construir payload para la DB (adaptar campos según tu tabla)
       const dbOrder = {
         customer_name: orderDetails.name,
         customer_address: orderDetails.address,
         payment_method: orderDetails.payment,
         total_amount: orderDetails.total,
-        order_items: orderDetails.items,
+        order_items: orderDetails.items, // aquí cada item incluye observation
         order_status: 'Pendiente'
       };
 
-      // Guardar en orders (DB)
       await saveOrderToDB(dbOrder);
-
-      // Llamar al endpoint que actualiza stock en backend (usa Service Role)
       await placeOrderAPI(orderDetails, products);
 
-      // Refrescar productos para reflejar stock actualizado
       await fetchProducts();
-
-      // Limpiar carrito solo después de confirmar y procesar la orden
       clearCart();
 
-      // Notificar éxito
       addToast('Pedido confirmado y enviado correctamente.', 'Pedido enviado');
 
       return true;
@@ -151,8 +164,8 @@ export const ShopProvider = ({ children }) => {
       removeFromCart,
       updateCartQty,
       clearCart,
-      processOrder,   // preparar orden (sin persistir)
-      confirmOrder,   // confirmar/persistir orden (llamar al backend)
+      processOrder,
+      confirmOrder,
       isBusinessModalOpen,
       setBusinessModalOpen,
       // toasts
