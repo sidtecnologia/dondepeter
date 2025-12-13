@@ -1,7 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
 
-
-
 const BannerCarousel = ({
   images = [
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp',
@@ -16,82 +14,113 @@ const BannerCarousel = ({
 }) => {
   const containerRef = useRef(null);
   const trackRef = useRef(null);
+
+  // slides con clones: [last, ...images, first]
+  const slides = images && images.length > 0 ? [images[images.length - 1], ...images, images[0]] : [];
+  const totalSlides = slides.length; // images.length + 2
+
+  // índice en el track (empieza en 1 -> primer slide real)
+  const [index, setIndex] = useState(1);
+  const indexRef = useRef(index);
+  indexRef.current = index;
+
+  // ancho en px de cada slide (medido)
+  const [width, setWidth] = useState(0);
+
+  // control de transición para evitar "doble-move"
+  const skipTransitionRef = useRef(false);
+  const isTransitioningRef = useRef(false);
+
+  // autoplay timer
   const timerRef = useRef(null);
   const isInteractingRef = useRef(false);
+
+  // dragging
   const dragging = useRef(false);
   const startX = useRef(0);
   const startTranslate = useRef(0);
   const currentTranslate = useRef(0);
 
-  // slides con clones: [last, ...images, first]
-  const slides = images.length > 0 ? [images[images.length - 1], ...images, images[0]] : [];
-  const totalSlides = slides.length; // images.length + 2
-
-  // índice inicial en 1 (primer slide real)
-  const [index, setIndex] = useState(1);
-  const [width, setWidth] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  // medir ancho del contenedor y fijar anchos del track y slides en px
+  // MEDIR ancho usando ResizeObserver para evitar clientWidth=0
   useEffect(() => {
-    const update = () => {
-      const w = containerRef.current ? containerRef.current.clientWidth : 0;
-      if (!w) return;
+    const container = containerRef.current;
+    if (!container) return;
+
+    const ro = new ResizeObserver(() => {
+      const w = container.clientWidth || 0;
       setWidth(w);
-      // ajustar track width y posicion actual
+      // ajustar track inmediatamente cuando cambia ancho
       if (trackRef.current) {
-        trackRef.current.style.width = `${totalSlides * w}px`;
-        // mover al índice actual sin transición
+        trackRef.current.style.width = `${(totalSlides) * w}px`;
+        // posicionar en el index actual sin transición
         trackRef.current.style.transition = 'none';
-        const x = -index * w;
+        const x = -indexRef.current * w;
         trackRef.current.style.transform = `translateX(${x}px)`;
         currentTranslate.current = x;
-        // forzar reflow para evitar que next transition use 'none'
+        // force reflow
         // eslint-disable-next-line no-unused-expressions
         trackRef.current.offsetHeight;
       }
+    });
+
+    ro.observe(container);
+
+    return () => {
+      ro.disconnect();
     };
-
-    update();
-    window.addEventListener('resize', update);
-    return () => window.removeEventListener('resize', update);
-    // include totalSlides to update when images array changes
+    // totalSlides puede cambiar si images cambian
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalSlides, index]);
+  }, [totalSlides]);
 
-  // movimiento con transición cuando cambia index
-  useEffect(() => {
-    if (!trackRef.current || width === 0) return;
-    // apply transition
+  // Funciones para mover el track
+  const moveWithTransition = (idx) => {
+    if (!trackRef.current) return;
     trackRef.current.style.transition = `transform ${transitionMs}ms ease`;
-    const x = -index * width;
+    const x = -idx * width;
     trackRef.current.style.transform = `translateX(${x}px)`;
     currentTranslate.current = x;
-    setIsTransitioning(true);
+    isTransitioningRef.current = true;
+  };
+
+  const moveWithoutTransition = (idx) => {
+    if (!trackRef.current) return;
+    trackRef.current.style.transition = 'none';
+    const x = -idx * width;
+    trackRef.current.style.transform = `translateX(${x}px)`;
+    currentTranslate.current = x;
+    isTransitioningRef.current = false;
+  };
+
+  // cuando cambia index, movemos (salto sin transición si skipTransitionRef)
+  useEffect(() => {
+    if (!trackRef.current || width === 0) return;
+    if (skipTransitionRef.current) {
+      moveWithoutTransition(index);
+      skipTransitionRef.current = false;
+    } else {
+      moveWithTransition(index);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [index, width]);
 
-  // manejar fin de transición para saltos en clones
+  // Listener de transitionend para manejar clones (loop)
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
 
     const onTransitionEnd = () => {
-      setIsTransitioning(false);
-      // si estamos en clone final (último índice) -> saltar a primer real (1) sin transición
-      if (index === totalSlides - 1) {
-        const realIndex = 1;
-        track.style.transition = 'none';
-        track.style.transform = `translateX(${-realIndex * width}px)`;
-        currentTranslate.current = -realIndex * width;
-        setIndex(realIndex);
+      isTransitioningRef.current = false;
+      // Si estamos en clone final -> saltar a primer real (1)
+      if (indexRef.current === totalSlides - 1) {
+        skipTransitionRef.current = true;
+        // actualizar index a 1 (primer real)
+        setIndex(1);
+        // moveWithoutTransition se hará en el useEffect de index
       }
-      // si estamos en clone inicial (0) -> saltar a último real (totalSlides - 2)
-      if (index === 0) {
+      // Si estamos en clone inicial (0) -> saltar a último real (totalSlides-2)
+      if (indexRef.current === 0) {
         const lastReal = totalSlides - 2;
-        track.style.transition = 'none';
-        track.style.transform = `translateX(${-lastReal * width}px)`;
-        currentTranslate.current = -lastReal * width;
+        skipTransitionRef.current = true;
         setIndex(lastReal);
       }
     };
@@ -99,27 +128,30 @@ const BannerCarousel = ({
     track.addEventListener('transitionend', onTransitionEnd);
     return () => track.removeEventListener('transitionend', onTransitionEnd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, totalSlides, width]);
+  }, [totalSlides, width]);
 
-  // autoplay
+  // Autoplay (setInterval)
   useEffect(() => {
+    if (width === 0 || totalSlides === 0) return;
+
     const startAutoplay = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current && width > 0) {
+        if (!isInteractingRef.current && !dragging.current) {
           setIndex((prev) => prev + 1);
         }
       }, interval);
     };
 
     startAutoplay();
+
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interval, width, totalSlides]);
+  }, [width, totalSlides, interval]);
 
-  // swipe / drag handlers
+  // Swipe / Drag handlers
   useEffect(() => {
     const container = containerRef.current;
     const track = trackRef.current;
@@ -128,12 +160,13 @@ const BannerCarousel = ({
     const getClientX = (e) => (e.touches ? e.touches[0].clientX : e.clientX);
 
     const onStart = (e) => {
-      if (isTransitioning) return;
+      if (isTransitioningRef.current) return;
       dragging.current = true;
       isInteractingRef.current = true;
       startX.current = getClientX(e);
       startTranslate.current = currentTranslate.current;
       track.style.transition = 'none';
+      // pause autoplay
       if (timerRef.current) clearInterval(timerRef.current);
     };
 
@@ -154,26 +187,23 @@ const BannerCarousel = ({
       const dx = x - startX.current;
       const threshold = Math.max(40, width * 0.15);
       if (dx < -threshold) {
-        // swipe left -> next
         setIndex((prev) => prev + 1);
       } else if (dx > threshold) {
-        // swipe right -> prev
         setIndex((prev) => prev - 1);
       } else {
-        // restore current
-        track.style.transition = `transform ${transitionMs}ms ease`;
-        track.style.transform = `translateX(${currentTranslate.current}px)`;
+        // restaurar al índice actual
+        moveWithTransition(indexRef.current);
       }
-      // restart autoplay
+      // reiniciar autoplay (clear lo anterior por seguridad)
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current && width > 0) {
+        if (!isInteractingRef.current && !dragging.current) {
           setIndex((prev) => prev + 1);
         }
       }, interval);
     };
 
-    // Touch events
+    // add listeners
     container.addEventListener('touchstart', onStart, { passive: true });
     container.addEventListener('touchmove', onMove, { passive: true });
     container.addEventListener('touchend', onEnd);
@@ -190,9 +220,9 @@ const BannerCarousel = ({
       window.removeEventListener('mouseup', onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, isTransitioning, transitionMs, interval, totalSlides]);
+  }, [width, interval, totalSlides]);
 
-  // pause on hover (desktop)
+  // pause on hover for desktop
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -204,7 +234,7 @@ const BannerCarousel = ({
       isInteractingRef.current = false;
       if (timerRef.current) clearInterval(timerRef.current);
       timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current && width > 0) {
+        if (!isInteractingRef.current && !dragging.current) {
           setIndex((prev) => prev + 1);
         }
       }, interval);
@@ -216,9 +246,9 @@ const BannerCarousel = ({
       container.removeEventListener('mouseleave', onLeave);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, interval]);
+  }, [interval]);
 
-  if (images.length === 0) return null;
+  if (!images || images.length === 0) return null;
 
   return (
     <div className="w-full relative">
@@ -247,6 +277,8 @@ const BannerCarousel = ({
                 alt={`Banner ${((i + images.length - 1) % images.length) + 1}`}
                 className="w-full h-full object-cover min-h-[150px] md:min-h-[300px] block"
                 loading="lazy"
+                draggable="false"
+                onDragStart={(e) => e.preventDefault()}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
                 {i === 1 && (
