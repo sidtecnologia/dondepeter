@@ -31,8 +31,8 @@ const BannerCarousel = ({
   const skipTransitionRef = useRef(false);
   const isTransitioningRef = useRef(false);
 
-  // autoplay timer
-  const timerRef = useRef(null);
+  // scheduler en lugar de interval
+  const timeoutRef = useRef(null);
   const isInteractingRef = useRef(false);
 
   // dragging
@@ -41,7 +41,7 @@ const BannerCarousel = ({
   const startTranslate = useRef(0);
   const currentTranslate = useRef(0);
 
-  // MEDIR ancho usando ResizeObserver para evitar clientWidth=0
+  // MEDIR ancho usando ResizeObserver
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -113,9 +113,7 @@ const BannerCarousel = ({
       // Si estamos en clone final -> saltar a primer real (1)
       if (indexRef.current === totalSlides - 1) {
         skipTransitionRef.current = true;
-        // actualizar index a 1 (primer real)
         setIndex(1);
-        // moveWithoutTransition se hará en el useEffect de index
       }
       // Si estamos en clone inicial (0) -> saltar a último real (totalSlides-2)
       if (indexRef.current === 0) {
@@ -123,6 +121,8 @@ const BannerCarousel = ({
         skipTransitionRef.current = true;
         setIndex(lastReal);
       }
+      // programar siguiente slide luego de que la transición finalizó
+      scheduleNext();
     };
 
     track.addEventListener('transitionend', onTransitionEnd);
@@ -130,23 +130,59 @@ const BannerCarousel = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalSlides, width]);
 
-  // Autoplay (setInterval)
-  useEffect(() => {
+  // Scheduler: usar setTimeout controlado para evitar acumulación y problemas al dejar la pestaña inactiva
+  const clearScheduled = () => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  };
+
+  const scheduleNext = () => {
+    clearScheduled();
+    // No programar si ancho 0 o sin slides
     if (width === 0 || totalSlides === 0) return;
+    // No programar si la página está oculta
+    if (typeof document !== 'undefined' && document.hidden) return;
+    timeoutRef.current = setTimeout(() => {
+      // Si estamos en transición o interactuando, reprogramar
+      if (isTransitioningRef.current || isInteractingRef.current || dragging.current) {
+        scheduleNext();
+        return;
+      }
+      // protección para que index no crezca indefinidamente (en casos extremos)
+      if (indexRef.current > 1000000) {
+        setIndex(1);
+      } else {
+        setIndex((prev) => prev + 1);
+      }
+    }, interval);
+  };
 
-    const startAutoplay = () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current) {
-          setIndex((prev) => prev + 1);
+  // iniciar scheduler al montar y cuando cambie width o slides
+  useEffect(() => {
+    // clear any previous
+    clearScheduled();
+    // schedule first
+    scheduleNext();
+
+    // Manejar visibilitychange para pausar/reanudar scheduler
+    const onVisibility = () => {
+      if (document.hidden) {
+        clearScheduled();
+      } else {
+        // re-posicionar correctamente (por si quedamos en un clone) y reprogramar
+        if (trackRef.current) {
+          moveWithoutTransition(indexRef.current);
         }
-      }, interval);
+        scheduleNext();
+      }
     };
-
-    startAutoplay();
+    document.addEventListener('visibilitychange', onVisibility);
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearScheduled();
+      document.removeEventListener('visibilitychange', onVisibility);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [width, totalSlides, interval]);
@@ -166,8 +202,7 @@ const BannerCarousel = ({
       startX.current = getClientX(e);
       startTranslate.current = currentTranslate.current;
       track.style.transition = 'none';
-      // pause autoplay
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearScheduled(); // pause autoplay
     };
 
     const onMove = (e) => {
@@ -194,13 +229,8 @@ const BannerCarousel = ({
         // restaurar al índice actual
         moveWithTransition(indexRef.current);
       }
-      // reiniciar autoplay (clear lo anterior por seguridad)
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current) {
-          setIndex((prev) => prev + 1);
-        }
-      }, interval);
+      // reanudar scheduler
+      scheduleNext();
     };
 
     // add listeners
@@ -228,16 +258,11 @@ const BannerCarousel = ({
     if (!container) return;
     const onEnter = () => {
       isInteractingRef.current = true;
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearScheduled();
     };
     const onLeave = () => {
       isInteractingRef.current = false;
-      if (timerRef.current) clearInterval(timerRef.current);
-      timerRef.current = setInterval(() => {
-        if (!isInteractingRef.current && !dragging.current) {
-          setIndex((prev) => prev + 1);
-        }
-      }, interval);
+      scheduleNext();
     };
     container.addEventListener('mouseenter', onEnter);
     container.addEventListener('mouseleave', onLeave);
@@ -282,7 +307,7 @@ const BannerCarousel = ({
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
                 {i === 1 && (
-                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg"></h2>
+                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
                 )}
               </div>
             </div>
@@ -297,7 +322,10 @@ const BannerCarousel = ({
           return (
             <button
               key={i}
-              onClick={() => setIndex(i + 1)}
+              onClick={() => {
+                setIndex(i + 1);
+                scheduleNext();
+              }}
               className={`w-2 h-2 rounded-full transition-all ${realIndex === i ? 'bg-white w-4' : 'bg-white/60'}`}
               aria-label={`Ir al banner ${i + 1}`}
             />
