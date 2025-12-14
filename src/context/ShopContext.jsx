@@ -102,14 +102,15 @@ export const ShopProvider = ({ children }) => {
   /**
    * processOrder:
    * - Prepara los datos de la orden (sin persistir) para mostrar en el modal de confirmación.
-   * - Agrega `observation` a nivel de pedido concatenando las observaciones de productos (si existen).
+   * - Agrega `observation` a nivel de pedido concatenando SOLO el texto de las observaciones
+   *   provistas desde ProductModal (sin prefijar con el nombre del producto).
    */
   const processOrder = async (customerData) => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
 
-    // Concatenar observaciones de productos (solo las que provienen de ProductModal)
+    // Tomar únicamente el texto de observación de cada item (si existe) y concatenar
     const itemObservations = cart
-      .map(i => i.observation && i.observation.trim() ? `${i.name}: ${i.observation.trim()}` : null)
+      .map(i => i.observation && i.observation.trim() ? i.observation.trim() : null)
       .filter(Boolean);
 
     const aggregatedObservation = itemObservations.length > 0 ? itemObservations.join(' | ') : '';
@@ -120,7 +121,7 @@ export const ShopProvider = ({ children }) => {
       payment: customerData.payment,
       items: cart,
       total,
-      observation: aggregatedObservation // observación a nivel de pedido (proviene solo de ProductModal)
+      observation: aggregatedObservation // sólo el texto de las observaciones (sin nombres)
     };
 
     return orderDetails;
@@ -129,7 +130,8 @@ export const ShopProvider = ({ children }) => {
   /**
    * confirmOrder:
    * - Llamar cuando el usuario CONFIRME el pedido (por ejemplo, al pulsar el botón de WhatsApp en SuccessModal).
-   * - Inserta orden en la tabla `orders` con la columna `observation` poblada con la concatenación de observaciones de productos.
+   * - Inserta orden en la tabla `orders` con la columna `observation` poblada con la concatenación
+   *   de las observaciones de productos (texto puro).
    */
   const confirmOrder = async (orderDetails) => {
     try {
@@ -141,7 +143,7 @@ export const ShopProvider = ({ children }) => {
         payment_method: orderDetails.payment,
         total_amount: orderDetails.total,
         order_items: orderDetails.items, // mantiene los items (incluyendo item.observation) en JSONB
-        observation: orderDetails.observation || '', // <-- columna directa en orders (solo ProductModal obs)
+        observation: orderDetails.observation || '', // columna directa en orders (texto puro)
         order_status: 'Pendiente'
       };
 
