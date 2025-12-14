@@ -10,7 +10,8 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
     name: '',
     address: '',
     payment: 'Efectivo',
-    terms: false
+    terms: false,
+    observation: '' // Observación a nivel de pedido (columna directa en orders)
   });
 
   const handleSubmit = async (e) => {
@@ -19,14 +20,15 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
       alert('Debes aceptar los términos y condiciones');
       return;
     }
-    
+
     setLoading(true);
     try {
+      // processOrder prepara orderDetails (sin persistir)
       const details = await processOrder(formData);
       onClose();
       onSuccess(details);
     } catch (error) {
-      alert(error.message);
+      alert(error.message || 'Error procesando la orden');
     } finally {
       setLoading(false);
     }
@@ -37,25 +39,25 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-semibold mb-1 text-gray-700">Nombre Completo</label>
-          <input 
+          <input
             required
-            type="text" 
+            type="text"
             className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
             placeholder="Juan Pérez"
             value={formData.name}
-            onChange={e => setFormData({...formData, name: e.target.value})}
+            onChange={e => setFormData({ ...formData, name: e.target.value })}
           />
         </div>
 
         <div>
           <label className="block text-sm font-semibold mb-1 text-gray-700">Dirección de Entrega</label>
-          <input 
+          <input
             required
-            type="text" 
+            type="text"
             className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition"
             placeholder="Calle 123 # 45-67"
             value={formData.address}
-            onChange={e => setFormData({...formData, address: e.target.value})}
+            onChange={e => setFormData({ ...formData, address: e.target.value })}
           />
         </div>
 
@@ -63,23 +65,23 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
           <label className="block text-sm font-semibold mb-2 text-gray-700">Método de Pago</label>
           <div className="flex gap-4">
             <label className="flex items-center gap-2 p-3 border rounded-xl flex-1 cursor-pointer hover:bg-gray-50 has-[:checked]:border-primary has-[:checked]:bg-blue-50">
-              <input 
-                type="radio" 
-                name="payment" 
+              <input
+                type="radio"
+                name="payment"
                 value="Efectivo"
                 checked={formData.payment === 'Efectivo'}
-                onChange={e => setFormData({...formData, payment: e.target.value})}
+                onChange={e => setFormData({ ...formData, payment: e.target.value })}
                 className="accent-primary"
               />
               <span>Efectivo</span>
             </label>
             <label className="flex items-center gap-2 p-3 border rounded-xl flex-1 cursor-pointer hover:bg-gray-50 has-[:checked]:border-primary has-[:checked]:bg-blue-50">
-              <input 
-                type="radio" 
-                name="payment" 
+              <input
+                type="radio"
+                name="payment"
                 value="Transferencia"
                 checked={formData.payment === 'Transferencia'}
-                onChange={e => setFormData({...formData, payment: e.target.value})}
+                onChange={e => setFormData({ ...formData, payment: e.target.value })}
                 className="accent-primary"
               />
               <span>Transferencia</span>
@@ -87,13 +89,24 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </div>
 
+        <div>
+          <label className="block text-sm font-semibold mb-1 text-gray-700">Observación (opcional)</label>
+          <textarea
+            rows={3}
+            placeholder="Indicaciones para el repartidor, alergias, etc."
+            value={formData.observation}
+            onChange={e => setFormData({ ...formData, observation: e.target.value })}
+            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition resize-none"
+          />
+        </div>
+
         <div className="flex items-center gap-2 py-2">
-          <input 
+          <input
             id="terms"
-            type="checkbox" 
+            type="checkbox"
             required
             checked={formData.terms}
-            onChange={e => setFormData({...formData, terms: e.target.checked})}
+            onChange={e => setFormData({ ...formData, terms: e.target.checked })}
             className="w-5 h-5 accent-primary rounded"
           />
           <label htmlFor="terms" className="text-sm text-gray-600">
@@ -101,8 +114,8 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
           </label>
         </div>
 
-        <button 
-          type="submit" 
+        <button
+          type="submit"
           disabled={loading}
           className="w-full btn-primary py-3 text-lg flex justify-center"
         >

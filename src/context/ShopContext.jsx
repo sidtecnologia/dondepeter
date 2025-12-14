@@ -45,12 +45,6 @@ export const ShopProvider = ({ children }) => {
     setToasts((prev) => prev.filter(t => t.id !== id));
   };
 
-  /**
-   * addToCart ahora acepta observation como tercer parámetro.
-   * Si el producto ya existe en el carrito:
-   *  - incrementa la cantidad
-   *  - si se envía una nueva observación la concatena con la existente separada por " | "
-   */
   const addToCart = (product, qty, observation = '') => {
     const existing = cart.find(item => item.id === product.id);
     const currentQty = existing ? existing.qty : 0;
@@ -108,6 +102,7 @@ export const ShopProvider = ({ children }) => {
   /**
    * processOrder:
    * - Prepara los datos de la orden (sin persistir) para mostrar en el modal de confirmación.
+   * - Acepta customerData.observation como la observación a nivel de pedido.
    */
   const processOrder = async (customerData) => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
@@ -116,7 +111,8 @@ export const ShopProvider = ({ children }) => {
       address: customerData.address,
       payment: customerData.payment,
       items: cart,
-      total
+      total,
+      observation: customerData.observation || '' // <-- observación a nivel de pedido
     };
 
     return orderDetails;
@@ -125,25 +121,36 @@ export const ShopProvider = ({ children }) => {
   /**
    * confirmOrder:
    * - Llamar cuando el usuario CONFIRME el pedido (por ejemplo, al pulsar el botón de WhatsApp en SuccessModal).
-   * - Realiza: saveOrderToDB, placeOrderAPI (para actualizar stock), refetch products y limpiar carrito.
+   * - Inserta orden en la tabla `orders` con la columna `observation` como campo directo (no dentro del jsonb).
+   * - Luego actualiza stock y limpia carrito.
    */
   const confirmOrder = async (orderDetails) => {
     try {
+      // Construir objeto para la tabla orders.
+      // Asegúrate de que la tabla `orders` tenga una columna `observation` (text/varchar).
       const dbOrder = {
         customer_name: orderDetails.name,
         customer_address: orderDetails.address,
         payment_method: orderDetails.payment,
         total_amount: orderDetails.total,
-        order_items: orderDetails.items, // aquí cada item incluye observation
+        order_items: orderDetails.items, // sigue guardando items como jsonb
+        observation: orderDetails.observation || '', // <-- columna directa en orders
         order_status: 'Pendiente'
       };
 
+      // Guardar en orders (observación estará en su propia columna)
       await saveOrderToDB(dbOrder);
+
+      // Llamar al endpoint que actualiza stock en backend (usa Service Role)
       await placeOrderAPI(orderDetails, products);
 
+      // Refrescar productos para reflejar stock actualizado
       await fetchProducts();
+
+      // Limpiar carrito solo después de confirmar y procesar la orden
       clearCart();
 
+      // Notificar éxito
       addToast('Pedido confirmado y enviado correctamente.', 'Pedido enviado');
 
       return true;
