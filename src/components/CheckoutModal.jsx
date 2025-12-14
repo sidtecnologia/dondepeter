@@ -10,8 +10,7 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
     name: '',
     address: '',
     payment: 'Efectivo',
-    terms: false,
-    observation: '' // Observación a nivel de pedido (columna directa en orders)
+    terms: false
   });
 
   const handleSubmit = async (e) => {
@@ -87,17 +86,6 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
               <span>Transferencia</span>
             </label>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-semibold mb-1 text-gray-700">Observación (opcional)</label>
-          <textarea
-            rows={3}
-            placeholder="Indicaciones para el repartidor, alergias, etc."
-            value={formData.observation}
-            onChange={e => setFormData({ ...formData, observation: e.target.value })}
-            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition resize-none"
-          />
         </div>
 
         <div className="flex items-center gap-2 py-2">

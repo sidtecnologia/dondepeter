@@ -102,17 +102,25 @@ export const ShopProvider = ({ children }) => {
   /**
    * processOrder:
    * - Prepara los datos de la orden (sin persistir) para mostrar en el modal de confirmación.
-   * - Acepta customerData.observation como la observación a nivel de pedido.
+   * - Agrega `observation` a nivel de pedido concatenando las observaciones de productos (si existen).
    */
   const processOrder = async (customerData) => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.qty), 0);
+
+    // Concatenar observaciones de productos (solo las que provienen de ProductModal)
+    const itemObservations = cart
+      .map(i => i.observation && i.observation.trim() ? `${i.name}: ${i.observation.trim()}` : null)
+      .filter(Boolean);
+
+    const aggregatedObservation = itemObservations.length > 0 ? itemObservations.join(' | ') : '';
+
     const orderDetails = {
       name: customerData.name,
       address: customerData.address,
       payment: customerData.payment,
       items: cart,
       total,
-      observation: customerData.observation || '' // <-- observación a nivel de pedido
+      observation: aggregatedObservation // observación a nivel de pedido (proviene solo de ProductModal)
     };
 
     return orderDetails;
@@ -121,8 +129,7 @@ export const ShopProvider = ({ children }) => {
   /**
    * confirmOrder:
    * - Llamar cuando el usuario CONFIRME el pedido (por ejemplo, al pulsar el botón de WhatsApp en SuccessModal).
-   * - Inserta orden en la tabla `orders` con la columna `observation` como campo directo (no dentro del jsonb).
-   * - Luego actualiza stock y limpia carrito.
+   * - Inserta orden en la tabla `orders` con la columna `observation` poblada con la concatenación de observaciones de productos.
    */
   const confirmOrder = async (orderDetails) => {
     try {
@@ -133,8 +140,8 @@ export const ShopProvider = ({ children }) => {
         customer_address: orderDetails.address,
         payment_method: orderDetails.payment,
         total_amount: orderDetails.total,
-        order_items: orderDetails.items, // sigue guardando items como jsonb
-        observation: orderDetails.observation || '', // <-- columna directa en orders
+        order_items: orderDetails.items, // mantiene los items (incluyendo item.observation) en JSONB
+        observation: orderDetails.observation || '', // <-- columna directa en orders (solo ProductModal obs)
         order_status: 'Pendiente'
       };
 

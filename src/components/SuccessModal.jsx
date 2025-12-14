@@ -12,33 +12,33 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
 
   const handleWhatsApp = async () => {
     const whatsappNumber = '573227671829';
-
-    let message = `Hola, mi nombre es *${orderDetails.name}*.\n`;
-    message += `Quiero confirmar un pedido para la dirección *${orderDetails.address}*, para pagar con *${orderDetails.payment}*.\n\n`;
-    message += `*Detalles del pedido:*\n`;
-
+    let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}. Detalles: `;
     orderDetails.items.forEach(item => {
-
-      message += `• ${item.name} (x${item.qty}) --- $${formatMoney(item.price * item.qty)}\n`;
+      const obsText = item.observation ? ` (${item.observation})` : '';
+      message += `---- ${item.name} x${item.qty}${obsText} = $${formatMoney(item.price * item.qty)} `;
     });
-
-    message += `\n*Total: $${formatMoney(orderDetails.total)}*`;
+    if (orderDetails.observation) {
+      message += `Observaciones: ${orderDetails.observation} `;
+    }
+    message += `Total: $${formatMoney(orderDetails.total)}`;
 
     const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
 
     try {
       setLoading(true);
-
+      // Confirmar orden (persistir) solo cuando el usuario confirma en este modal
       await confirmOrder(orderDetails);
 
+      // Abrir WhatsApp en nueva pestaña/ventana
       window.open(link, '_blank', 'noopener,noreferrer');
 
+      // Cerrar modal
       if (onClose) onClose();
 
+      // Después de un pequeño delay, recargar la página para garantizar estado limpio
       setTimeout(() => {
         window.location.reload();
-      }, 1000);
-
+      }, 800);
     } catch (err) {
       console.error('No se pudo confirmar el pedido antes de enviar WhatsApp:', err);
       alert('No se pudo procesar el pedido. Por favor intenta de nuevo más tarde.');
@@ -58,8 +58,15 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
           <p className="text-gray-500 mt-2">Confirma el pedido por WhatsApp para proceder con el despacho.</p>
         </div>
 
-        <div className="bg-gray-100 p-4 rounded-xl">
-          <p className="text-lg font-bold">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
+        <div className="bg-gray-100 p-4 rounded-xl text-left">
+          <p className="text-lg font-bold mb-2">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
+          {/* Mostrar la observación agregada desde ProductModal (agregada a orderDetails.observation) */}
+          {orderDetails.observation ? (
+            <div className="mt-2">
+              <p className="font-semibold text-sm text-gray-700">Observaciones del pedido:</p>
+              <p className="text-sm text-gray-600">{orderDetails.observation}</p>
+            </div>
+          ) : null}
         </div>
 
         <button
