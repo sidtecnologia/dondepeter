@@ -63,7 +63,7 @@ const ProductModal = ({ product, isOpen, onClose }) => {
           <textarea
             value={observation}
             onChange={(e) => setObservation(e.target.value)}
-            placeholder="Ej: Sin cebolla, extra picante, dejar en portería..."
+            placeholder="Ej: Sin cebolla, extra picante..."
             rows={3}
             className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition resize-none"
           />
