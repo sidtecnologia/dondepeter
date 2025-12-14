@@ -18,25 +18,24 @@ const BannerCarousel = ({
   // slides con clones: [last, ...images, first]
   const slides = images && images.length > 0 ? [images[images.length - 1], ...images, images[0]] : [];
   const totalSlides = slides.length; // images.length + 2
+  const realCount = images.length;
 
   // índice en el track (empieza en 1 -> primer slide real)
   const [index, setIndex] = useState(1);
   const indexRef = useRef(index);
   indexRef.current = index;
 
-  // ancho en px de cada slide (medido)
+  // ancho en px de cada slide
   const [width, setWidth] = useState(0);
 
-  // control de transición para evitar "doble-move"
-  const skipTransitionRef = useRef(false);
+  // refs para controlar estado
   const isTransitioningRef = useRef(false);
-
-  // scheduler en lugar de interval
+  const skipTransitionRef = useRef(false);
   const timeoutRef = useRef(null);
   const isInteractingRef = useRef(false);
-
-  // dragging
   const dragging = useRef(false);
+
+  // dragging helpers
   const startX = useRef(0);
   const startTranslate = useRef(0);
   const currentTranslate = useRef(0);
@@ -49,9 +48,8 @@ const BannerCarousel = ({
     const ro = new ResizeObserver(() => {
       const w = container.clientWidth || 0;
       setWidth(w);
-      // ajustar track inmediatamente cuando cambia ancho
       if (trackRef.current) {
-        trackRef.current.style.width = `${(totalSlides) * w}px`;
+        trackRef.current.style.width = `${totalSlides * w}px`;
         // posicionar en el index actual sin transición
         trackRef.current.style.transition = 'none';
         const x = -indexRef.current * w;
@@ -65,129 +63,97 @@ const BannerCarousel = ({
 
     ro.observe(container);
 
-    return () => {
-      ro.disconnect();
-    };
-    // totalSlides puede cambiar si images cambian
+    return () => ro.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalSlides]);
 
-  // Funciones para mover el track
-  const moveWithTransition = (idx) => {
-    if (!trackRef.current) return;
-    trackRef.current.style.transition = `transform ${transitionMs}ms ease`;
+  // Mover track con/sin transición
+  const moveTo = (idx, withTransition = true) => {
+    const track = trackRef.current;
+    if (!track) return;
+    if (withTransition) {
+      track.style.transition = `transform ${transitionMs}ms ease`;
+      isTransitioningRef.current = true;
+    } else {
+      track.style.transition = 'none';
+      isTransitioningRef.current = false;
+    }
     const x = -idx * width;
-    trackRef.current.style.transform = `translateX(${x}px)`;
+    track.style.transform = `translateX(${x}px)`;
     currentTranslate.current = x;
-    isTransitioningRef.current = true;
   };
 
-  const moveWithoutTransition = (idx) => {
-    if (!trackRef.current) return;
-    trackRef.current.style.transition = 'none';
-    const x = -idx * width;
-    trackRef.current.style.transform = `translateX(${x}px)`;
-    currentTranslate.current = x;
-    isTransitioningRef.current = false;
-  };
-
-  // cuando cambia index, movemos (salto sin transición si skipTransitionRef)
+  // Cuando cambia index, mover y programar siguiente slide
   useEffect(() => {
-    if (!trackRef.current || width === 0) return;
+    if (!trackRef.current || width === 0 || totalSlides === 0) return;
+
     if (skipTransitionRef.current) {
-      moveWithoutTransition(index);
+      // salto sin transición (cuando ajustamos clones)
+      moveTo(index, false);
       skipTransitionRef.current = false;
     } else {
-      moveWithTransition(index);
+      moveTo(index, true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, width]);
 
-  // Listener de transitionend para manejar clones (loop)
+    // limpiar timeout previo
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+
+    // programar siguiente slide (si no interactuando y pestaña visible)
+    const schedule = () => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      timeoutRef.current = setTimeout(() => {
+        // no avanzar si el usuario está interactuando o estamos en transición
+        if (isInteractingRef.current || isTransitioningRef.current || dragging.current) {
+          // reprogramar de nuevo para revisar más tarde
+          schedule();
+          return;
+        }
+        setIndex((prev) => prev + 1);
+      }, interval);
+    };
+
+    schedule();
+
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, width, totalSlides, interval]);
+
+  // transitionend: manejar clones para loop infinito y reprogramar
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
 
     const onTransitionEnd = () => {
       isTransitioningRef.current = false;
-      // Si estamos en clone final -> saltar a primer real (1)
+      // Si estamos en clone final -> saltar a primer real (index = 1)
       if (indexRef.current === totalSlides - 1) {
         skipTransitionRef.current = true;
         setIndex(1);
+        return;
       }
-      // Si estamos en clone inicial (0) -> saltar a último real (totalSlides-2)
+      // Si estamos en clone inicial -> saltar a último real
       if (indexRef.current === 0) {
-        const lastReal = totalSlides - 2;
         skipTransitionRef.current = true;
-        setIndex(lastReal);
+        setIndex(totalSlides - 2);
+        return;
       }
-      // programar siguiente slide luego de que la transición finalizó
-      scheduleNext();
+      // Si transición terminó en un slide real, nada más que hacer (el efecto useEffect de index programará el siguiente timeout)
     };
 
     track.addEventListener('transitionend', onTransitionEnd);
     return () => track.removeEventListener('transitionend', onTransitionEnd);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalSlides, width]);
+  }, [totalSlides]);
 
-  // Scheduler: usar setTimeout controlado para evitar acumulación y problemas al dejar la pestaña inactiva
-  const clearScheduled = () => {
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
-  };
-
-  const scheduleNext = () => {
-    clearScheduled();
-    // No programar si ancho 0 o sin slides
-    if (width === 0 || totalSlides === 0) return;
-    // No programar si la página está oculta
-    if (typeof document !== 'undefined' && document.hidden) return;
-    timeoutRef.current = setTimeout(() => {
-      // Si estamos en transición o interactuando, reprogramar
-      if (isTransitioningRef.current || isInteractingRef.current || dragging.current) {
-        scheduleNext();
-        return;
-      }
-      // protección para que index no crezca indefinidamente (en casos extremos)
-      if (indexRef.current > 1000000) {
-        setIndex(1);
-      } else {
-        setIndex((prev) => prev + 1);
-      }
-    }, interval);
-  };
-
-  // iniciar scheduler al montar y cuando cambie width o slides
-  useEffect(() => {
-    // clear any previous
-    clearScheduled();
-    // schedule first
-    scheduleNext();
-
-    // Manejar visibilitychange para pausar/reanudar scheduler
-    const onVisibility = () => {
-      if (document.hidden) {
-        clearScheduled();
-      } else {
-        // re-posicionar correctamente (por si quedamos en un clone) y reprogramar
-        if (trackRef.current) {
-          moveWithoutTransition(indexRef.current);
-        }
-        scheduleNext();
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-
-    return () => {
-      clearScheduled();
-      document.removeEventListener('visibilitychange', onVisibility);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, totalSlides, interval]);
-
-  // Swipe / Drag handlers
+  // Swipe / drag handlers
   useEffect(() => {
     const container = containerRef.current;
     const track = trackRef.current;
@@ -202,7 +168,11 @@ const BannerCarousel = ({
       startX.current = getClientX(e);
       startTranslate.current = currentTranslate.current;
       track.style.transition = 'none';
-      clearScheduled(); // pause autoplay
+      // pause scheduled autoplay
+  if (timeoutRef.current) {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+  }
     };
 
     const onMove = (e) => {
@@ -226,14 +196,12 @@ const BannerCarousel = ({
       } else if (dx > threshold) {
         setIndex((prev) => prev - 1);
       } else {
-        // restaurar al índice actual
-        moveWithTransition(indexRef.current);
+        // devolver al slide actual
+        moveTo(indexRef.current, true);
       }
-      // reanudar scheduler
-      scheduleNext();
     };
 
-    // add listeners
+    // eventos touch + mouse
     container.addEventListener('touchstart', onStart, { passive: true });
     container.addEventListener('touchmove', onMove, { passive: true });
     container.addEventListener('touchend', onEnd);
@@ -250,20 +218,34 @@ const BannerCarousel = ({
       window.removeEventListener('mouseup', onEnd);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, interval, totalSlides]);
+  }, [width, totalSlides]);
 
-  // pause on hover for desktop
+  // pause/resume on hover (desktop)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
     const onEnter = () => {
       isInteractingRef.current = true;
-      clearScheduled();
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
     };
     const onLeave = () => {
       isInteractingRef.current = false;
-      scheduleNext();
+      // trigger next scheduling immediately after hover
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      // force re-schedule by nudging indexRef (use setIndex to re-run effect)
+      if (!isTransitioningRef.current) {
+        // schedule next slide by setting a timeout via effect on index; trigger by setting same index
+        setIndex((prev) => prev);
+      }
     };
+
     container.addEventListener('mouseenter', onEnter);
     container.addEventListener('mouseleave', onLeave);
     return () => {
@@ -271,67 +253,93 @@ const BannerCarousel = ({
       container.removeEventListener('mouseleave', onLeave);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [interval]);
+  }, []);
+
+  // pause scheduling when page hidden, resume when visible
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+      } else {
+        // when visible again, ensure track is positioned correctly and schedule next
+        if (trackRef.current) moveTo(indexRef.current, false);
+        // schedule next via index effect by nudging index (set to same to re-run)
+        setIndex((prev) => prev);
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
 
   if (!images || images.length === 0) return null;
 
   return (
     <div className="w-full relative">
+    <div
+    ref={containerRef}
+    className="w-full overflow-hidden rounded-2xl shadow-lg"
+    aria-hidden={false}
+    >
+    <div
+    ref={trackRef}
+    className="flex"
+    style={{
+      width: width > 0 ? `${totalSlides * width}px` : 'auto',
+      transform: `translateX(${-index * width}px)`,
+          transition: `transform ${transitionMs}ms ease`
+    }}
+    >
+    {slides.map((src, i) => (
       <div
-        ref={containerRef}
-        className="w-full overflow-hidden rounded-2xl shadow-lg"
-        aria-hidden={false}
+      key={i}
+      className="flex-shrink-0 relative"
+      style={{ width: width > 0 ? `${width}px` : '100%', minWidth: width > 0 ? `${width}px` : '100%' }}
       >
-        <div
-          ref={trackRef}
-          className="flex"
-          style={{
-            width: width > 0 ? `${totalSlides * width}px` : 'auto',
-            transform: `translateX(${-index * width}px)`,
-            transition: `transform ${transitionMs}ms ease`
-          }}
-        >
-          {slides.map((src, i) => (
-            <div
-              key={i}
-              className="flex-shrink-0 relative"
-              style={{ width: width > 0 ? `${width}px` : '100%', minWidth: width > 0 ? `${width}px` : '100%' }}
-            >
-              <img
-                src={src}
-                alt={`Banner ${((i + images.length - 1) % images.length) + 1}`}
-                className="w-full h-full object-cover min-h-[150px] md:min-h-[300px] block"
-                loading="lazy"
-                draggable="false"
-                onDragStart={(e) => e.preventDefault()}
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
-                {i === 1 && (
-                  <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+      <img
+      src={src}
+      alt={`Banner ${((i + images.length - 1) % images.length) + 1}`}
+      className="w-full h-full object-cover min-h-[150px] md:min-h-[300px] block"
+      loading="lazy"
+      draggable="false"
+      onDragStart={(e) => e.preventDefault()}
+      />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
+      {i === 1 && (
+        <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
+      )}
       </div>
+      </div>
+    ))}
+    </div>
+    </div>
 
-      {/* indicadores */}
-      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
-        {images.map((_, i) => {
-          const realIndex = ((index - 1 + images.length) % images.length);
-          return (
-            <button
-              key={i}
-              onClick={() => {
-                setIndex(i + 1);
-                scheduleNext();
-              }}
-              className={`w-2 h-2 rounded-full transition-all ${realIndex === i ? 'bg-white w-4' : 'bg-white/60'}`}
-              aria-label={`Ir al banner ${i + 1}`}
-            />
-          );
-        })}
-      </div>
+    {/* indicadores */}
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+    {images.map((_, i) => {
+      const realIndex = ((index - 1 + realCount) % realCount);
+      return (
+        <button
+        key={i}
+        onClick={() => {
+          setIndex(i + 1);
+        }}
+        className={`w-2 h-2 rounded-full transition-all ${realIndex === i ? 'bg-white w-4' : 'bg-white/60'}`}
+        aria-label={`Ir al banner ${i + 1}`}
+        />
+      );
+    })}
+    </div>
     </div>
   );
 };
