@@ -2,6 +2,7 @@ import { useState } from 'react';
 import Modal from './ui/Modal';
 import { useShop } from '../context/ShopContext';
 import { formatMoney } from '../utils/format';
+import { PrivacyContent } from '../utils/privacy';
 
 const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
   const { processOrder } = useShop();
@@ -88,19 +89,42 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2 py-2">
-          <input
+        const TerminosSeccion = () => {
+          const [isModalOpen, setIsModalOpen] = useState(false);
+          const [formData, setFormData] = useState({ terms: false });
+
+          return (
+            <div className="flex items-center gap-2 py-2">
+            <input
             id="terms"
             type="checkbox"
             required
             checked={formData.terms}
             onChange={e => setFormData({ ...formData, terms: e.target.checked })}
-            className="w-5 h-5 accent-primary rounded"
-          />
-          <label htmlFor="terms" className="text-sm text-gray-600">
-            Acepto el <a href="#" className="text-primary hover:underline">tratamiento de datos personales</a>.
-          </label>
-        </div>
+            className="w-5 h-5 accent-primary rounded cursor-pointer"
+            />
+            <label htmlFor="terms" className="text-sm text-gray-600">
+            Acepto el{' '}
+            <button
+            type="button"
+            onClick={() => setIsModalOpen(true)}
+            className="text-primary hover:underline font-semibold"
+            >
+            tratamiento de datos personales
+            </button>.
+            </label>
+
+            {/* Tu componente Modal */}
+            <Modal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title="Política de Privacidad"
+            >
+            <PrivacyContent />
+            </Modal>
+            </div>
+          );
+        };
 
         <button
           type="submit"
