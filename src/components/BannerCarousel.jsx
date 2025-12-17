@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 
 const BannerCarousel = ({
   images = [
@@ -15,32 +15,66 @@ const BannerCarousel = ({
   const containerRef = useRef(null);
   const trackRef = useRef(null);
 
-  // slides con clones: [last, ...images, first]
-  const slides = images && images.length > 0 ? [images[images.length - 1], ...images, images[0]] : [];
-  const totalSlides = slides.length; // images.length + 2
+  // 1. OPTIMIZACIÓN: Memoizar slides para evitar re-cálculos innecesarios
+  const slides = useMemo(() => {
+    if (!images || images.length === 0) return [];
+    return [images[images.length - 1], ...images, images[0]];
+  }, [images]);
+
+  const totalSlides = slides.length;
   const realCount = images.length;
 
-  // índice en el track (empieza en 1 -> primer slide real)
   const [index, setIndex] = useState(1);
   const indexRef = useRef(index);
-  indexRef.current = index;
+  indexRef.current = index; // Mantener ref actualizado para event listeners
 
-  // ancho en px de cada slide
   const [width, setWidth] = useState(0);
 
-  // refs para controlar estado
+  // Refs de control
   const isTransitioningRef = useRef(false);
   const skipTransitionRef = useRef(false);
   const timeoutRef = useRef(null);
-  const isInteractingRef = useRef(false);
+  const isInteractingRef = useRef(false); // Hover o Drag activo
   const dragging = useRef(false);
 
-  // dragging helpers
+  // Refs para Drag
   const startX = useRef(0);
   const startTranslate = useRef(0);
   const currentTranslate = useRef(0);
 
-  // MEDIR ancho usando ResizeObserver
+  // Helper para mover el track
+  // 2. OPTIMIZACIÓN: Usar translate3d para activar aceleración por hardware (GPU)
+  const moveTo = useCallback((idx, withTransition = true) => {
+    const track = trackRef.current;
+    if (!track) return;
+
+    track.style.transition = withTransition ? `transform ${transitionMs}ms ease` : 'none';
+    isTransitioningRef.current = withTransition;
+
+    const x = -idx * width;
+    track.style.transform = `translate3d(${x}px, 0, 0)`; // translate3d es más fluido en móviles
+    currentTranslate.current = x;
+  }, [width, transitionMs]);
+
+  // Helper centralizado para el Timer
+  const startTimer = useCallback(() => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    // Solo iniciamos si no hay interacción humana activa
+    if (!isInteractingRef.current && !dragging.current) {
+      timeoutRef.current = setTimeout(() => {
+        setIndex((prev) => prev + 1);
+      }, interval);
+    }
+  }, [interval]);
+
+  const stopTimer = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  // Efecto 1: Medir ancho (ResizeObserver)
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -48,112 +82,59 @@ const BannerCarousel = ({
     const ro = new ResizeObserver(() => {
       const w = container.clientWidth || 0;
       setWidth(w);
+      // Ajuste inmediato sin transición al redimensionar
       if (trackRef.current) {
         trackRef.current.style.width = `${totalSlides * w}px`;
-        // posicionar en el index actual sin transición
-        trackRef.current.style.transition = 'none';
-        const x = -indexRef.current * w;
-        trackRef.current.style.transform = `translateX(${x}px)`;
-        currentTranslate.current = x;
-        // force reflow
-        // eslint-disable-next-line no-unused-expressions
-        trackRef.current.offsetHeight;
+        moveTo(indexRef.current, false);
       }
     });
 
     ro.observe(container);
-
     return () => ro.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [totalSlides]);
+  }, [totalSlides, moveTo]);
 
-  // Mover track con/sin transición
-  const moveTo = (idx, withTransition = true) => {
-    const track = trackRef.current;
-    if (!track) return;
-    if (withTransition) {
-      track.style.transition = `transform ${transitionMs}ms ease`;
-      isTransitioningRef.current = true;
-    } else {
-      track.style.transition = 'none';
-      isTransitioningRef.current = false;
-    }
-    const x = -idx * width;
-    track.style.transform = `translateX(${x}px)`;
-    currentTranslate.current = x;
-  };
-
-  // Cuando cambia index, mover y programar siguiente slide
+  // Efecto 2: Control del Movimiento y el Ciclo de AutoPlay
   useEffect(() => {
-    if (!trackRef.current || width === 0 || totalSlides === 0) return;
+    if (width === 0 || totalSlides === 0) return;
 
+    // Ejecutar movimiento visual
     if (skipTransitionRef.current) {
-      // salto sin transición (cuando ajustamos clones)
       moveTo(index, false);
       skipTransitionRef.current = false;
     } else {
       moveTo(index, true);
     }
 
-    // limpiar timeout previo
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-      timeoutRef.current = null;
-    }
+    // Reiniciar timer automáticamente después de cada cambio de slide
+    startTimer();
 
-    // programar siguiente slide (si no interactuando y pestaña visible)
-    const schedule = () => {
-      if (typeof document !== 'undefined' && document.hidden) return;
-      timeoutRef.current = setTimeout(() => {
-        // no avanzar si el usuario está interactuando o estamos en transición
-        if (isInteractingRef.current || isTransitioningRef.current || dragging.current) {
-          // reprogramar de nuevo para revisar más tarde
-          schedule();
-          return;
-        }
-        setIndex((prev) => prev + 1);
-      }, interval);
-    };
+    return stopTimer; // Limpieza al desmontar o cambiar index
+  }, [index, width, totalSlides, startTimer, stopTimer, moveTo]);
 
-    schedule();
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [index, width, totalSlides, interval]);
-
-  // transitionend: manejar clones para loop infinito y reprogramar
+  // Efecto 3: Manejar el Loop Infinito (TransitionEnd)
   useEffect(() => {
     const track = trackRef.current;
     if (!track) return;
 
     const onTransitionEnd = () => {
       isTransitioningRef.current = false;
-      // Si estamos en clone final -> saltar a primer real (index = 1)
+      // Loop final -> principio
       if (indexRef.current === totalSlides - 1) {
         skipTransitionRef.current = true;
         setIndex(1);
-        return;
       }
-      // Si estamos en clone inicial -> saltar a último real
-      if (indexRef.current === 0) {
+      // Loop principio -> final
+      else if (indexRef.current === 0) {
         skipTransitionRef.current = true;
         setIndex(totalSlides - 2);
-        return;
       }
-      // Si transición terminó en un slide real, nada más que hacer (el efecto useEffect de index programará el siguiente timeout)
     };
 
     track.addEventListener('transitionend', onTransitionEnd);
     return () => track.removeEventListener('transitionend', onTransitionEnd);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [totalSlides]);
 
-  // Swipe / drag handlers
+  // Efecto 4: Gestos Touch y Mouse (Drag)
   useEffect(() => {
     const container = containerRef.current;
     const track = trackRef.current;
@@ -163,16 +144,12 @@ const BannerCarousel = ({
 
     const onStart = (e) => {
       if (isTransitioningRef.current) return;
+      stopTimer(); // Pausa inmediata
       dragging.current = true;
       isInteractingRef.current = true;
       startX.current = getClientX(e);
       startTranslate.current = currentTranslate.current;
       track.style.transition = 'none';
-      // pause scheduled autoplay
-  if (timeoutRef.current) {
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = null;
-  }
     };
 
     const onMove = (e) => {
@@ -180,28 +157,31 @@ const BannerCarousel = ({
       const x = getClientX(e);
       const dx = x - startX.current;
       const newTranslate = startTranslate.current + dx;
-      track.style.transform = `translateX(${newTranslate}px)`;
+      track.style.transform = `translate3d(${newTranslate}px, 0, 0)`;
       currentTranslate.current = newTranslate;
     };
 
     const onEnd = (e) => {
       if (!dragging.current) return;
       dragging.current = false;
+      // Nota: Mantenemos isInteractingRef en true un momento si es necesario,
+      // pero aquí lo soltamos para reanudar el timer via useEffect o mouseleave
       isInteractingRef.current = false;
-      const x = getClientX(e);
+
+      const x = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX); // Fix para touchend
       const dx = x - startX.current;
       const threshold = Math.max(40, width * 0.15);
+
       if (dx < -threshold) {
         setIndex((prev) => prev + 1);
       } else if (dx > threshold) {
         setIndex((prev) => prev - 1);
       } else {
-        // devolver al slide actual
-        moveTo(indexRef.current, true);
+        moveTo(indexRef.current, true); // Regresar al sitio si no fue suficiente swipe
+        startTimer(); // Reanudar timer si no cambió de slide
       }
     };
 
-    // eventos touch + mouse
     container.addEventListener('touchstart', onStart, { passive: true });
     container.addEventListener('touchmove', onMove, { passive: true });
     container.addEventListener('touchend', onEnd);
@@ -217,106 +197,80 @@ const BannerCarousel = ({
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [width, totalSlides]);
+  }, [width, totalSlides, startTimer, stopTimer, moveTo]);
 
-  // pause/resume on hover (desktop)
+  // Efecto 5: Hover y Visibilidad
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
     const onEnter = () => {
       isInteractingRef.current = true;
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
+      stopTimer();
     };
+
     const onLeave = () => {
       isInteractingRef.current = false;
-      // trigger next scheduling immediately after hover
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
-      }
-      // force re-schedule by nudging indexRef (use setIndex to re-run effect)
-      if (!isTransitioningRef.current) {
-        // schedule next slide by setting a timeout via effect on index; trigger by setting same index
-        setIndex((prev) => prev);
-      }
+      startTimer();
     };
 
-    container.addEventListener('mouseenter', onEnter);
-    container.addEventListener('mouseleave', onLeave);
-    return () => {
-      container.removeEventListener('mouseenter', onEnter);
-      container.removeEventListener('mouseleave', onLeave);
+    const onVisibilityChange = () => {
+      if (document.hidden) stopTimer();
+      else startTimer();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
-  // pause scheduling when page hidden, resume when visible
-  useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
-      } else {
-        // when visible again, ensure track is positioned correctly and schedule next
-        if (trackRef.current) moveTo(indexRef.current, false);
-        // schedule next via index effect by nudging index (set to same to re-run)
-        setIndex((prev) => prev);
-      }
-    };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+      container.addEventListener('mouseenter', onEnter);
+      container.addEventListener('mouseleave', onLeave);
+      document.addEventListener('visibilitychange', onVisibilityChange);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+      return () => {
+        container.removeEventListener('mouseenter', onEnter);
+        container.removeEventListener('mouseleave', onLeave);
+        document.removeEventListener('visibilitychange', onVisibilityChange);
+        stopTimer();
+      };
+  }, [startTimer, stopTimer]);
 
   if (!images || images.length === 0) return null;
 
   return (
-    <div className="w-full relative">
+    <div className="w-full relative group">
     <div
     ref={containerRef}
-    className="w-full overflow-hidden rounded-2xl shadow-lg"
-    aria-hidden={false}
+    className="w-full overflow-hidden rounded-2xl shadow-lg touch-pan-y"
+    // touch-pan-y permite scroll vertical de la página sin bloquear el swipe horizontal
+    role="region"
+    aria-roledescription="carousel"
     >
     <div
     ref={trackRef}
-    className="flex"
+    className="flex will-change-transform" // Optimización CSS para el navegador
     style={{
       width: width > 0 ? `${totalSlides * width}px` : 'auto',
-      transform: `translateX(${-index * width}px)`,
-          transition: `transform ${transitionMs}ms ease`
+      transform: `translate3d(${-index * width}px, 0, 0)`,
     }}
     >
     {slides.map((src, i) => (
       <div
       key={i}
       className="flex-shrink-0 relative"
-      style={{ width: width > 0 ? `${width}px` : '100%', minWidth: width > 0 ? `${width}px` : '100%' }}
+      style={{ width: width > 0 ? `${width}px` : '100%' }}
+      aria-hidden={i !== index} // Accesibilidad
       >
       <img
       src={src}
       alt={`Banner ${((i + images.length - 1) % images.length) + 1}`}
-      className="w-full h-full object-cover min-h-[150px] md:min-h-[300px] block"
+      className="w-full h-full object-cover min-h-[150px] md:min-h-[300px] block select-none"
       loading="lazy"
       draggable="false"
-      onDragStart={(e) => e.preventDefault()}
       />
+      {/* Ejemplo de contenido sobre la imagen (solo en slide original 1) */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent flex items-end p-6 pointer-events-none">
-      {i === 1 && (
-        <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">Las Mejores Hamburguesas</h2>
+      {/* Nota: Ajusté la lógica para que coincida con la imagen 1 real */}
+      {src === images[0] && (
+        <h2 className="text-white text-2xl md:text-4xl font-bold drop-shadow-lg">
+        Las Mejores Hamburguesas
+        </h2>
       )}
       </div>
       </div>
@@ -324,18 +278,22 @@ const BannerCarousel = ({
     </div>
     </div>
 
-    {/* indicadores */}
+    {/* Indicadores */}
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-2 z-20">
     {images.map((_, i) => {
-      const realIndex = ((index - 1 + realCount) % realCount);
+      const realIndex = (index - 1 + realCount) % realCount;
       return (
         <button
         key={i}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation(); // Evitar triggers raros
           setIndex(i + 1);
         }}
-        className={`w-2 h-2 rounded-full transition-all ${realIndex === i ? 'bg-white w-4' : 'bg-white/60'}`}
+        className={`w-2 h-2 rounded-full transition-all duration-300 ${
+          realIndex === i ? 'bg-white w-4' : 'bg-white/60 hover:bg-white/80'
+        }`}
         aria-label={`Ir al banner ${i + 1}`}
+        aria-current={realIndex === i ? 'true' : 'false'}
         />
       );
     })}
