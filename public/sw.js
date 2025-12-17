@@ -3,6 +3,7 @@ try {
 } catch (e) { }
 
 const CACHE_NAME = 'comidarapida-cache-v3.2
+const ASSETS = [
   '/',
   '/index.html',
   '/src/main.jsx',
