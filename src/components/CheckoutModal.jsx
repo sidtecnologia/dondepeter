@@ -110,11 +110,10 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
             onClick={() => setIsModalOpen(true)}
             className="text-primary hover:underline font-semibold"
             >
-            tratamiento de datos personales
+            Tratamiento de datos personales
             </button>.
             </label>
 
-            {/* Tu componente Modal */}
             <Modal
             isOpen={isModalOpen}
             onClose={() => setIsModalOpen(false)}
