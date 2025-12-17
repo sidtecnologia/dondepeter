@@ -1,3 +1,5 @@
+import React from 'react';
+
 export const PrivacyContent = () => {
     return (
         <div className="text-gray-700 leading-relaxed">
@@ -5,7 +7,7 @@ export const PrivacyContent = () => {
         1. Responsable del Tratamiento de Datos
         </h2>
         <p className="mb-4">
-        El responsable del tratamiento de sus datos personales es <strong>Comida Rápida Donde Peter</strong>, con domicilio en Floridablanca, Santander, Colombia. Para cualquier consulta, contáctenos en: <span className="text-blue-600 underline">tu_correo@ejemplo.com</span>.
+        El responsable del tratamiento de sus datos personales es <strong>Comida Rápida</strong>, con domicilio en Floridablanca, Santander, Colombia. Para cualquier consulta, contáctenos en: <span className="text-blue-600 underline">tu_correo@ejemplo.com</span>.
         </p>
 
         <h2 className="text-xl font-bold text-green-700 border-b-2 border-gray-100 pb-2 mb-4">
@@ -44,3 +46,5 @@ export const PrivacyContent = () => {
         </div>
     );
 };
+
+export default PrivacyContent;
