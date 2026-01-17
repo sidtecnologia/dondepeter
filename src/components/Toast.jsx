@@ -1,11 +1,7 @@
 import { useEffect } from 'react';
 import { useShop } from '../context/ShopContext';
 
-/**
- * Toast container que consume toasts desde ShopContext
- * - Muestra toasts en la esquina superior derecha (stack)
- * - Se eliminan automáticamente (el propio ShopContext programa el borrado)
- */
+
 const Toasts = () => {
   const { toasts, removeToast } = useShop();
 
