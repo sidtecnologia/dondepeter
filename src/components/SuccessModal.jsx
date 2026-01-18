@@ -15,7 +15,7 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
   const buildMessage = () => {
     const lines = [];
     lines.push(`Hola, soy ${orderDetails.name}`);
-    lines.push(`Dirección: ${orderDetails.address}`);
+    lines.push(`he realizado un pedido para la dirección: ${orderDetails.address}`);
     lines.push(`Pago: ${orderDetails.payment || 'Efectivo'}`);
     lines.push('');
     lines.push('Pedido:');
