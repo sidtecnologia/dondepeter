@@ -5,47 +5,55 @@ import { formatMoney } from '../utils/format';
 import { useShop } from '../context/ShopContext';
 
 const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
-  const { confirmOrder } = useShop();
+  const { confirmOrder, addToast } = useShop();
   const [loading, setLoading] = useState(false);
 
   if (!orderDetails) return null;
 
-  const handleWhatsApp = async () => {
-    const whatsappNumber = '573227671829';
-    let message = `Hola mi nombre es ${orderDetails.name}. He realizado un pedido para la dirección ${orderDetails.address}. Detalles: `;
-    orderDetails.items.forEach(item => {
-      const obsText = item.observation ? ` (${item.observation})` : '';
-      message += `---- ${item.name} x${item.qty}${obsText} = $${formatMoney(item.price * item.qty)} `;
+  const isMobile = () => /Android|iPhone|iPad|iPod|Windows Phone|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+
+  const buildMessage = () => {
+    const lines = [];
+    lines.push(`Hola, soy ${orderDetails.name}`);
+    lines.push(`Dirección: ${orderDetails.address}`);
+    lines.push(`Pago: ${orderDetails.payment || 'Efectivo'}`);
+    lines.push('');
+    lines.push('Pedido:');
+    orderDetails.items.forEach((item, idx) => {
+      const obs = item.observation ? ` (${item.observation})` : '';
+      lines.push(`${idx + 1}. ${item.qty} x ${item.name}${obs} - $${formatMoney(item.price * item.qty)}`);
     });
-    if (orderDetails.observation) {
-      message += `Observaciones: ${orderDetails.observation} `;
+    lines.push('');
+    lines.push(`Total: $${formatMoney(orderDetails.total)}`);
+    return lines.join('\n');
+  };
+
+  const buildLink = () => {
+    const whatsappNumber = '573227671829';
+    const text = buildMessage();
+    const encoded = encodeURIComponent(text);
+    if (isMobile()) {
+      return `whatsapp://send?phone=${whatsappNumber}&text=${encoded}`;
     }
-    message += `Total: $${formatMoney(orderDetails.total)}`;
+    return `https://wa.me/${whatsappNumber}?text=${encoded}`;
+  };
 
-    const link = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(message)}`;
-
-    const win = window.open('about:blank', '_blank', 'noopener,noreferrer');
+  const handleWhatsApp = async () => {
+    const link = buildLink();
+    const win = window.open(link, '_blank', 'noopener,noreferrer');
+    setLoading(true);
     try {
-      setLoading(true);
       await confirmOrder(orderDetails);
-      if (win) {
-        try {
-          win.location.href = link;
-        } catch (e) {
-          window.open(link, '_blank', 'noopener,noreferrer');
-        }
-      } else {
-        window.open(link, '_blank', 'noopener,noreferrer');
-      }
+      addToast('Pedido confirmado. Continúa en WhatsApp para finalizar el envío.', 'Pedido confirmado');
       if (onClose) onClose();
       setTimeout(() => {
         window.location.reload();
       }, 800);
     } catch (err) {
-      if (win) {
-        try { win.close(); } catch (e) {}
-      }
-      console.error('No se pudo confirmar el pedido antes de enviar WhatsApp:', err);
+      try {
+        if (win && !win.closed) win.close();
+      } catch (e) {}
+      addToast('No se pudo confirmar el pedido. Por favor intenta de nuevo.', 'Error');
       alert('No se pudo procesar el pedido. Por favor intenta de nuevo más tarde.');
     } finally {
       setLoading(false);
