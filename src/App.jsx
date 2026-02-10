@@ -12,7 +12,6 @@ import BannerCarousel from './components/BannerCarousel';
 import Toasts from './components/Toast';
 import { Loader2 } from 'lucide-react';
 
-// Helper shuffle
 const shuffleArray = (arr) => {
   const copy = [...arr];
   for (let i = copy.length - 1; i > 0; i--) {
@@ -24,21 +23,21 @@ const shuffleArray = (arr) => {
 
 const Categories = ({ categories, selected, onSelect }) => (
   <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-4 scrollbar-hide">
+  <button
+  onClick={() => onSelect('Todo')}
+  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
+  >
+  <span className="font-semibold">Todo</span>
+  </button>
+  {categories.map(cat => (
     <button
-      onClick={() => onSelect('Todo')}
-      className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
+    key={cat}
+    onClick={() => onSelect(cat)}
+    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
     >
-      <span className="font-semibold">Todo</span>
+    <span className="font-semibold whitespace-nowrap">{cat}</span>
     </button>
-    {categories.map(cat => (
-      <button
-        key={cat}
-        onClick={() => onSelect(cat)}
-        className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
-      >
-        <span className="font-semibold whitespace-nowrap">{cat}</span>
-      </button>
-    ))}
+  ))}
   </div>
 );
 
@@ -51,7 +50,6 @@ const StoreContent = () => {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [successOrder, setSuccessOrder] = useState(null);
 
-  // Derivar categorías y productos filtrados
   const categories = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category))];
     return cats.filter(Boolean);
@@ -65,18 +63,14 @@ const StoreContent = () => {
     });
   }, [products, searchTerm, selectedCategory]);
 
-  // featured: base set
   const featuredBase = useMemo(() => products.filter(p => p.featured), [products]);
-  // randomized featured state -> re-randomize on mount, products change, or when selecting 'Todo'
   const [featured, setFeatured] = useState(() => shuffleArray(featuredBase));
 
-  // when products change, randomize
   useMemo(() => {
     setFeatured(shuffleArray(featuredBase));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length]);
 
-  // Re-randomize when user selects category 'Todo'
   const handleSelectCategory = (cat) => {
     setSelectedCategory(cat);
     if (cat === 'Todo') {
@@ -88,8 +82,8 @@ const StoreContent = () => {
 
   if (loading) return (
     <div className="h-screen flex flex-col items-center justify-center gap-4 text-primary">
-      <Loader2 className="animate-spin w-12 h-12" />
-      <p className="font-semibold animate-pulse">Cargando menú...</p>
+    <Loader2 className="animate-spin w-12 h-12" />
+    <p className="font-semibold animate-pulse">Cargando menú...</p>
     </div>
   );
 
@@ -97,7 +91,6 @@ const StoreContent = () => {
 
   const showSections = searchTerm === '' && selectedCategory === 'Todo';
 
-  // Banners (puedes agregar más imágenes)
   const banners = [
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp',
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner2.webp',
@@ -105,108 +98,103 @@ const StoreContent = () => {
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner4.webp',
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner5.webp',
     'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner6.webp'
-    
-
   ];
 
   return (
     <div className="min-h-screen pb-20">
-      <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
+    <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
 
-      <main className="max-w-6xl mx-auto px-4 py-6">
-        <BannerCarousel images={banners} speed={48} />
+    <main className="max-w-6xl mx-auto px-4 py-6">
+    <BannerCarousel images={banners} speed={48} />
 
-        <Categories
-          categories={categories}
-          selected={selectedCategory}
-          onSelect={handleSelectCategory}
-        />
+    <Categories
+    categories={categories}
+    selected={selectedCategory}
+    onSelect={handleSelectCategory}
+    />
 
-        <div className="mt-8">
-          {showSections ? (
-            <>
-              {featured.length > 0 && (
-                <section className="mb-12">
-                  <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-                    <span className="w-2 h-8 bg-primary rounded-full"></span>
-                    Destacados
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {featured.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
-                  </div>
-                </section>
-              )}
-
-              {offers.length > 0 && (
-                <section>
-                  <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-                    <span className="w-2 h-8 bg-yellow-400 rounded-full"></span>
-                    Ofertas Exclusivas
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {offers.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
-                  </div>
-                </section>
-              )}
-            </>
-          ) : (
-            <section>
-              <h2 className="text-xl font-bold mb-4 text-gray-700">Resultados ({filteredProducts.length})</h2>
-              {filteredProducts.length === 0 ? (
-                <div className="text-center py-10 text-gray-500">No se encontraron productos.</div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                  {filteredProducts.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
-                </div>
-              )}
-            </section>
-          )}
+    <div className="mt-8">
+    {showSections ? (
+      <>
+      {featured.length > 0 && (
+        <section className="mb-12">
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+        <span className="w-2 h-8 bg-primary rounded-full"></span>
+        Destacados
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        {featured.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
         </div>
-      </main>
+        </section>
+      )}
 
-      <footer className="bg-white border-t mt-12 py-8 text-center text-gray-500 text-sm">
-        <p>&copy; {new Date().getFullYear()} Comida Rápida. Todos los derechos reservados.</p>
-      </footer>
+      {offers.length > 0 && (
+        <section>
+        <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
+        <span className="w-2 h-8 bg-yellow-400 rounded-full"></span>
+        Ofertas Exclusivas
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        {offers.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
+        </div>
+        </section>
+      )}
+      </>
+    ) : (
+      <section>
+      <h2 className="text-xl font-bold mb-4 text-gray-700">Resultados ({filteredProducts.length})</h2>
+      {filteredProducts.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">No se encontraron productos.</div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        {filteredProducts.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
+        </div>
+      )}
+      </section>
+    )}
+    </div>
+    </main>
 
-      {/* Modales */}
-      <ProductModal
-        product={activeProduct}
-        isOpen={!!activeProduct}
-        onClose={() => setActiveProduct(null)}
-      />
+    <footer className="bg-white border-t mt-12 py-8 text-center text-gray-500 text-sm">
+    <p>&copy; {new Date().getFullYear()} Comida Rápida. Todos los derechos reservados.</p>
+    </footer>
 
-      <CartModal
-        isOpen={isCartOpen}
-        onClose={() => setIsCartOpen(false)}
-        onCheckout={() => setIsCheckoutOpen(true)}
-      />
+    <ProductModal
+    product={activeProduct}
+    isOpen={!!activeProduct}
+    onClose={() => setActiveProduct(null)}
+    />
 
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        onClose={() => setIsCheckoutOpen(false)}
-        onSuccess={(details) => setSuccessOrder(details)}
-      />
+    <CartModal
+    isOpen={isCartOpen}
+    onClose={() => setIsCartOpen(false)}
+    onCheckout={() => setIsCheckoutOpen(true)}
+    />
 
-      <SuccessModal
-        isOpen={!!successOrder}
-        onClose={() => setSuccessOrder(null)}
-        orderDetails={successOrder}
-      />
+    <CheckoutModal
+    isOpen={isCheckoutOpen}
+    onClose={() => setIsCheckoutOpen(false)}
+    onSuccess={(details) => setSuccessOrder(details)}
+    />
 
-      <BusinessModal />
+    <SuccessModal
+    isOpen={!!successOrder}
+    onClose={() => setSuccessOrder(null)}
+    orderDetails={successOrder}
+    />
 
-      {/* Install prompt (PWA) */}
-      <InstallPrompt />
+    <BusinessModal />
 
-      {/* Toasts */}
-      <Toasts />
+    <InstallPrompt />
+
+    <Toasts />
     </div>
   );
 };
 
 const App = () => (
   <ShopProvider>
-    <StoreContent />
+  <StoreContent />
   </ShopProvider>
 );
 
