@@ -11,7 +11,7 @@ const ProductCard = ({ product, onClick }) => {
     >
     {product.bestSeller && (
       <span className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 text-[10px] font-bold px-1.5 py-0.5 rounded-md z-10 shadow-sm">
-      TOP
+      Más Vendido
       </span>
     )}
 

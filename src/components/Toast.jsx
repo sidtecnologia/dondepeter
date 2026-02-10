@@ -1,38 +1,44 @@
 import { useEffect } from 'react';
 import { useShop } from '../context/ShopContext';
-
+import { CheckCircle2, XCircle, AlertCircle, X } from 'lucide-react';
 
 const Toasts = () => {
   const { toasts, removeToast } = useShop();
 
-  useEffect(() => {
-    // por si queremos realizar efectos o accesibilidad
-  }, [toasts]);
-
   if (!toasts || toasts.length === 0) return null;
 
   return (
-    <div className="fixed top-6 right-6 z-50 flex flex-col gap-3">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className="max-w-sm w-full bg-white border border-gray-200 shadow-md rounded-xl px-4 py-3 flex items-center gap-3 animate-slide-in"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="flex-1 text-left">
-            <p className="font-semibold text-sm text-gray-800">{t.title || '¡Listo!'}</p>
-            <p className="text-xs text-gray-500">{t.message}</p>
-          </div>
-          <button
-            onClick={() => removeToast(t.id)}
-            className="text-gray-400 hover:text-gray-600 text-sm"
-            aria-label="Cerrar notificación"
-          >
-            ✕
-          </button>
-        </div>
-      ))}
+    <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2 w-[90%] max-w-md">
+    {toasts.map((t) => (
+      <div
+      key={t.id}
+      className="bg-gray-900/95 backdrop-blur-md text-white shadow-2xl rounded-2xl px-4 py-3 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-300"
+      role="status"
+      aria-live="polite"
+      >
+      <div className="flex-shrink-0">
+      {t.type === 'error' ? (
+        <XCircle className="text-red-400" size={20} />
+      ) : t.type === 'warning' ? (
+        <AlertCircle className="text-yellow-400" size={20} />
+      ) : (
+        <CheckCircle2 className="text-green-400" size={20} />
+      )}
+      </div>
+
+      <div className="flex-1 text-left">
+      <p className="text-sm font-medium leading-tight">{t.message}</p>
+      </div>
+
+      <button
+      onClick={() => removeToast(t.id)}
+      className="p-1 hover:bg-white/10 rounded-full transition-colors"
+      aria-label="Cerrar notificación"
+      >
+      <X size={16} className="text-gray-400" />
+      </button>
+      </div>
+    ))}
     </div>
   );
 };
