@@ -22,10 +22,10 @@ const shuffleArray = (arr) => {
 };
 
 const Categories = ({ categories, selected, onSelect }) => (
-  <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-4 scrollbar-hide">
+  <div className="flex gap-3 overflow-x-auto pb-4 pt-2 px-4 scrollbar-hide">
   <button
   onClick={() => onSelect('Todo')}
-  className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
+  className={`flex-shrink-0 flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm transition-all ${selected === 'Todo' ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
   >
   <span className="font-semibold">Todo</span>
   </button>
@@ -33,7 +33,7 @@ const Categories = ({ categories, selected, onSelect }) => (
     <button
     key={cat}
     onClick={() => onSelect(cat)}
-    className={`flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-full border transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
+    className={`flex-shrink-0 flex items-center gap-2 px-4 py-1.5 rounded-full border text-sm transition-all ${selected === cat ? 'bg-primary text-white border-primary shadow-md' : 'bg-white border-gray-200'}`}
     >
     <span className="font-semibold whitespace-nowrap">{cat}</span>
     </button>
@@ -68,7 +68,6 @@ const StoreContent = () => {
 
   useMemo(() => {
     setFeatured(shuffleArray(featuredBase));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [products.length]);
 
   const handleSelectCategory = (cat) => {
@@ -104,7 +103,7 @@ const StoreContent = () => {
     <div className="min-h-screen pb-20">
     <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
 
-    <main className="max-w-6xl mx-auto px-4 py-6">
+    <main className="max-w-6xl mx-auto px-3 py-4">
     <BannerCarousel images={banners} speed={48} />
 
     <Categories
@@ -113,16 +112,16 @@ const StoreContent = () => {
     onSelect={handleSelectCategory}
     />
 
-    <div className="mt-8">
+    <div className="mt-4">
     {showSections ? (
       <>
       {featured.length > 0 && (
-        <section className="mb-12">
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <span className="w-2 h-8 bg-primary rounded-full"></span>
+        <section className="mb-8">
+        <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+        <span className="w-1.5 h-6 bg-primary rounded-full"></span>
         Destacados
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {featured.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
         </div>
         </section>
@@ -130,11 +129,11 @@ const StoreContent = () => {
 
       {offers.length > 0 && (
         <section>
-        <h2 className="text-2xl font-bold mb-6 text-gray-800 flex items-center gap-2">
-        <span className="w-2 h-8 bg-yellow-400 rounded-full"></span>
-        Ofertas Exclusivas
+        <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-2">
+        <span className="w-1.5 h-6 bg-yellow-400 rounded-full"></span>
+        Ofertas
         </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {offers.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
         </div>
         </section>
@@ -142,11 +141,11 @@ const StoreContent = () => {
       </>
     ) : (
       <section>
-      <h2 className="text-xl font-bold mb-4 text-gray-700">Resultados ({filteredProducts.length})</h2>
+      <h2 className="text-lg font-bold mb-4 text-gray-700">Resultados ({filteredProducts.length})</h2>
       {filteredProducts.length === 0 ? (
         <div className="text-center py-10 text-gray-500">No se encontraron productos.</div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {filteredProducts.map(p => <ProductCard key={p.id} product={p} onClick={setActiveProduct} />)}
         </div>
       )}
@@ -155,7 +154,7 @@ const StoreContent = () => {
     </div>
     </main>
 
-    <footer className="bg-white border-t mt-12 py-8 text-center text-gray-500 text-sm">
+    <footer className="bg-white border-t mt-8 py-6 text-center text-gray-500 text-xs">
     <p>&copy; {new Date().getFullYear()} Comida Rápida. Todos los derechos reservados.</p>
     </footer>
 
@@ -184,9 +183,7 @@ const StoreContent = () => {
     />
 
     <BusinessModal />
-
     <InstallPrompt />
-
     <Toasts />
     </div>
   );
