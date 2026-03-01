@@ -182,7 +182,7 @@ const ProductModal = ({ product, isOpen, onClose }) => {
             className="flex-1 bg-primary text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2"
           >
             <ShoppingCart size={20} />
-            <span>{product.stock >= qty ? 'Agregar al carrito' : 'Sin Stock'}</span>
+            <span>{product.stock >= qty ? 'Agregar' : 'Sin Stock'}</span>
           </button>
         </div>
       </div>
