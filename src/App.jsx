@@ -52,12 +52,14 @@ const StoreContent = () => {
 
   useEffect(() => {
     const pendingId = localStorage.getItem('pending_product_id');
-    if (pendingId) {
-      setTimeout(() => {
-        const element = document.getElementById(`product-${pendingId}`);
-        if (element) element.click();
-        localStorage.removeItem('pending_product_id');
-      }, 1000);
+    if (pendingId && products.length > 0) {
+      const productToOpen = products.find(p => p.id === pendingId);
+      if (productToOpen) {
+        setTimeout(() => {
+          setActiveProduct(productToOpen);
+          localStorage.removeItem('pending_product_id');
+        }, 500);
+      }
     }
   }, [products]);
 
@@ -101,12 +103,21 @@ const StoreContent = () => {
 
   const showSections = searchTerm === '' && selectedCategory === 'Todo';
 
+  const banners = [
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner1.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner2.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner3.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner4.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner5.webp',
+    'https://ndqzyplsiqigsynweihk.supabase.co/storage/v1/object/public/donde_peter/baner/baner6.webp'
+  ];
+
   return (
     <div className="min-h-screen pb-20">
     <Navbar onSearch={setSearchTerm} onOpenCart={() => setIsCartOpen(true)} />
 
     <main className="max-w-6xl mx-auto px-3 py-4">
-    <BannerCarousel images={['...']} />
+    <BannerCarousel images={banners} speed={48} />
 
     <Categories
     categories={categories}
@@ -124,11 +135,7 @@ const StoreContent = () => {
         Destacados
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {featured.map(p => (
-          <div id={`product-${p.id}`} key={p.id}>
-            <ProductCard product={p} onClick={setActiveProduct} />
-          </div>
-        ))}
+        {featured.map(p => <div key={p.id} id={`product-${p.id}`}><ProductCard product={p} onClick={setActiveProduct} /></div>)}
         </div>
         </section>
       )}
@@ -140,11 +147,7 @@ const StoreContent = () => {
         Ofertas
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        {offers.map(p => (
-          <div id={`product-${p.id}`} key={p.id}>
-            <ProductCard product={p} onClick={setActiveProduct} />
-          </div>
-        ))}
+        {offers.map(p => <div key={p.id} id={`product-${p.id}`}><ProductCard product={p} onClick={setActiveProduct} /></div>)}
         </div>
         </section>
       )}
@@ -152,25 +155,49 @@ const StoreContent = () => {
     ) : (
       <section>
       <h2 className="text-lg font-bold mb-4 text-gray-700">Resultados ({filteredProducts.length})</h2>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-      {filteredProducts.map(p => (
-        <div id={`product-${p.id}`} key={p.id}>
-          <ProductCard product={p} onClick={setActiveProduct} />
+      {filteredProducts.length === 0 ? (
+        <div className="text-center py-10 text-gray-500">No se encontraron productos.</div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {filteredProducts.map(p => <div key={p.id} id={`product-${p.id}`}><ProductCard product={p} onClick={setActiveProduct} /></div>)}
         </div>
-      ))}
-      </div>
+      )}
       </section>
     )}
     </div>
     </main>
+
+    <footer className="bg-white border-t mt-8 py-6 text-center text-gray-500 text-xs">
+    <p>&copy; {new Date().getFullYear()} Comida Rápida. Todos los derechos reservados.</p>
+    </footer>
 
     <ProductModal
     product={activeProduct}
     isOpen={!!activeProduct}
     onClose={() => setActiveProduct(null)}
     />
-    
-    {/* Resto de modales... */}
+
+    <CartModal
+    isOpen={isCartOpen}
+    onClose={() => setIsCartOpen(false)}
+    onCheckout={() => setIsCheckoutOpen(true)}
+    />
+
+    <CheckoutModal
+    isOpen={isCheckoutOpen}
+    onClose={() => setIsCheckoutOpen(false)}
+    onSuccess={(details) => setSuccessOrder(details)}
+    />
+
+    <SuccessModal
+    isOpen={!!successOrder}
+    onClose={() => setSuccessOrder(null)}
+    orderDetails={successOrder}
+    />
+
+    <BusinessModal />
+    <InstallPrompt />
+    <Toasts />
     </div>
   );
 };
