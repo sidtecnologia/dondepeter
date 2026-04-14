@@ -3,20 +3,17 @@ import Modal from './ui/Modal';
 import { CheckCircle } from 'lucide-react';
 import { formatMoney } from '../utils/format';
 import { useShop } from '../context/ShopContext';
-import TransferPaymentModal from './TransferPaymentModal';
 
 const WHATSAPP_NUMBER = '573227671829';
 
 const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
   const { confirmOrder, addToast } = useShop();
   const [loading, setLoading] = useState(false);
-  const [showTransferModal, setShowTransferModal] = useState(false);
 
   if (!orderDetails) return null;
 
-  const isTransfer = orderDetails.payment === 'Transferencia';
-
-  const isMobile = () => /Android|iPhone|iPad|iPod|Windows Phone|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+  const isMobile = () =>
+    /Android|iPhone|iPad|iPod|Windows Phone|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
 
   const buildCashMessage = () => {
     const lines = [];
@@ -32,31 +29,6 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
     lines.push('');
     lines.push(`Total: $${formatMoney(orderDetails.total)}`);
     return lines.join('\n');
-  };
-
-  const buildTransferMessage = (totalToPay) => {
-    const lines = [];
-    lines.push(`Hola, adjunto comprobante de pago para confirmar mi pedido.`);
-    lines.push(`Nombre: ${orderDetails.name}`);
-    lines.push(`Dirección: ${orderDetails.address}`);
-    lines.push(`Valor transferido: $${formatMoney(totalToPay)}`);
-    lines.push('');
-    lines.push('Pedido:');
-    orderDetails.items.forEach((item, idx) => {
-      const obs = item.observation ? ` (${item.observation})` : '';
-      lines.push(`${idx + 1}. ${item.qty} x ${item.name}${obs} - $${formatMoney(item.price * item.qty)}`);
-    });
-    lines.push('');
-    lines.push(`Total pedido: $${formatMoney(orderDetails.total)}`);
-    return lines.join('\n');
-  };
-
-  const openWhatsApp = (message) => {
-    const encoded = encodeURIComponent(message);
-    const link = isMobile()
-      ? `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encoded}`
-      : `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
-    window.open(link, '_blank', 'noopener,noreferrer');
   };
 
   const finishOrder = async () => {
@@ -75,76 +47,49 @@ const SuccessModal = ({ isOpen, onClose, orderDetails }) => {
   };
 
   const handleCash = async () => {
-    openWhatsApp(buildCashMessage());
-    await finishOrder();
-  };
-
-  const handleTransferConfirm = async (includeDelivery, totalToPay) => {
-    openWhatsApp(buildTransferMessage(totalToPay));
-    setShowTransferModal(false);
+    const encoded = encodeURIComponent(buildCashMessage());
+    const link = isMobile()
+      ? `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encoded}`
+      : `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
+    window.open(link, '_blank', 'noopener,noreferrer');
     await finishOrder();
   };
 
   return (
-    <>
-      <Modal isOpen={isOpen && !showTransferModal} onClose={onClose} title="¡Pedido Recibido!">
-        <div className="text-center space-y-6">
-          <div className="flex justify-center">
-            <CheckCircle className="text-green-500 w-20 h-20 animate-bounce" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-gray-800">¡Tu comida está casi lista!</h3>
-            <p className="text-gray-500 mt-2">
-              {isTransfer
-                ? 'Completa el pago por Nequi y envía el comprobante por WhatsApp.'
-                : 'Confirma el pedido por WhatsApp para proceder con el despacho.'}
-            </p>
-          </div>
-
-          <div className="bg-gray-100 p-4 rounded-xl text-left">
-            <p className="text-lg font-bold mb-2">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
-            {orderDetails.observation ? (
-              <div className="mt-2">
-                <p className="font-semibold text-sm text-gray-700">Observaciones del pedido:</p>
-                <p className="text-sm text-gray-600">{orderDetails.observation}</p>
-              </div>
-            ) : null}
-          </div>
-
-          {isTransfer ? (
-            <button
-              onClick={() => setShowTransferModal(true)}
-              disabled={loading}
-              className="w-full bg-purple-600 hover:bg-grey-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
-            >
-              <img src="https://www.pngall.com/wp-content/uploads/17/Money-Logo-Composition-PNG.png" alt="WA" className="w-6 h-6" />
-              {loading ? 'Procesando...' : 'Ver información de pago'}
-            </button>
-          ) : (
-            <button
-              onClick={handleCash}
-              disabled={loading}
-              className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
-            >
-              <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-6 h-6" />
-              {loading ? 'Procesando...' : 'Confirmar por WhatsApp'}
-            </button>
-          )}
-
-          <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">
-            Cancelar pedido y volver al menú
-          </button>
+    <Modal isOpen={isOpen} onClose={onClose} title="Pago en efectivo">
+      <div className="text-center space-y-6">
+        <div className="flex justify-center">
+          <CheckCircle className="text-green-500 w-20 h-20 animate-bounce" />
         </div>
-      </Modal>
+        <div>
+          <h3 className="text-xl font-bold text-gray-800">¡Tu comida está casi lista!</h3>
+          <p className="text-gray-500 mt-2">Confirma el pedido por WhatsApp para proceder con el despacho.</p>
+        </div>
 
-      <TransferPaymentModal
-        isOpen={showTransferModal}
-        onClose={() => setShowTransferModal(false)}
-        orderDetails={orderDetails}
-        onConfirm={handleTransferConfirm}
-        loading={loading}
-      />
-    </>
+        <div className="bg-gray-100 p-4 rounded-xl text-left">
+          <p className="text-lg font-bold mb-2">Total a pagar: <span className="text-primary">${formatMoney(orderDetails.total)}</span></p>
+          {orderDetails.observation ? (
+            <div className="mt-2">
+              <p className="font-semibold text-sm text-gray-700">Observaciones del pedido:</p>
+              <p className="text-sm text-gray-600">{orderDetails.observation}</p>
+            </div>
+          ) : null}
+        </div>
+
+        <button
+          onClick={handleCash}
+          disabled={loading}
+          className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
+        >
+          <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-6 h-6" />
+          {loading ? 'Procesando...' : 'Confirmar por WhatsApp'}
+        </button>
+
+        <button onClick={onClose} className="text-gray-400 text-sm hover:text-gray-600 underline">
+          Cancelar pedido y volver al menú
+        </button>
+      </div>
+    </Modal>
   );
 };
 

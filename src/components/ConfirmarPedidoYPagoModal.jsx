@@ -1,25 +1,30 @@
 import { useState } from 'react';
 import Modal from './ui/Modal';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check, CheckCircle2 } from 'lucide-react';
 import { formatMoney } from '../utils/format';
+import { useShop } from '../context/ShopContext';
 
 const NEQUI_QR_URL = 'https://upload.wikimedia.org/wikipedia/commons/d/d7/Commons_QR_code.png';
 const NEQUI_NUMBER = '3227671829';
 const DELIVERY_COST = 4000;
+const WHATSAPP_NUMBER = '573227671829';
 
-const TransferPaymentModal = ({ isOpen, onClose, orderDetails, onConfirm, loading }) => {
+const ConfirmarPedidoYPagoModal = ({ isOpen, onClose, orderDetails }) => {
+  const { confirmOrder, addToast } = useShop();
   const [copied, setCopied] = useState(false);
   const [includeDelivery, setIncludeDelivery] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   if (!orderDetails) return null;
 
   const totalToPay = includeDelivery ? orderDetails.total + DELIVERY_COST : orderDetails.total;
 
+  const isMobile = () =>
+    /Android|iPhone|iPad|iPod|Windows Phone|IEMobile|Opera Mini/i.test(navigator.userAgent || '');
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(NEQUI_NUMBER);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
       const el = document.createElement('textarea');
       el.value = NEQUI_NUMBER;
@@ -27,14 +32,60 @@ const TransferPaymentModal = ({ isOpen, onClose, orderDetails, onConfirm, loadin
       el.select();
       document.execCommand('copy');
       document.body.removeChild(el);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const buildMessage = () => {
+    const lines = [];
+    lines.push('Hola, adjunto comprobante de pago para confirmar mi pedido.');
+    lines.push(`Nombre: ${orderDetails.name}`);
+    lines.push(`Dirección: ${orderDetails.address}`);
+    lines.push(`Valor transferido: $${formatMoney(totalToPay)}`);
+    lines.push('');
+    lines.push('Pedido:');
+    orderDetails.items.forEach((item, idx) => {
+      const obs = item.observation ? ` (${item.observation})` : '';
+      lines.push(`${idx + 1}. ${item.qty} x ${item.name}${obs} - $${formatMoney(item.price * item.qty)}`);
+    });
+    lines.push('');
+    lines.push(`Total pedido: $${formatMoney(orderDetails.total)}`);
+    return lines.join('\n');
+  };
+
+  const handleConfirm = async () => {
+    setLoading(true);
+    try {
+      const encoded = encodeURIComponent(buildMessage());
+      const link = isMobile()
+        ? `whatsapp://send?phone=${WHATSAPP_NUMBER}&text=${encoded}`
+        : `https://wa.me/${WHATSAPP_NUMBER}?text=${encoded}`;
+      window.open(link, '_blank', 'noopener,noreferrer');
+
+      await confirmOrder(orderDetails);
+      addToast('Pedido confirmado. Continúa en WhatsApp para finalizar el envío.', 'Pedido confirmado');
+      if (onClose) onClose();
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      addToast('No se pudo confirmar el pedido. Por favor intenta de nuevo.', 'Error');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Información de Pago">
+    <Modal isOpen={isOpen} onClose={onClose} title="Pago por transferencia">
       <div className="space-y-5">
+
+        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+          <CheckCircle2 className="text-green-500 w-6 h-6 flex-shrink-0" />
+          <div>
+            <p className="font-semibold text-green-800 text-sm">¡Datos de entrega guardados!</p>
+            <p className="text-green-600 text-xs">Ahora completa el pago para confirmar tu pedido.</p>
+          </div>
+        </div>
+
         <div className="flex flex-col items-center gap-2">
           <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide">Escanea el QR de Nequi</p>
           <img
@@ -53,9 +104,7 @@ const TransferPaymentModal = ({ isOpen, onClose, orderDetails, onConfirm, loadin
             <button
               onClick={handleCopy}
               className={`flex items-center gap-1.5 px-4 py-3 rounded-xl font-semibold text-sm transition-all ${
-                copied
-                  ? 'bg-green-500 text-white'
-                  : 'bg-primary text-white hover:opacity-90'
+                copied ? 'bg-green-500 text-white' : 'bg-primary text-white hover:opacity-90'
               }`}
             >
               {copied ? <Check size={16} /> : <Copy size={16} />}
@@ -70,7 +119,7 @@ const TransferPaymentModal = ({ isOpen, onClose, orderDetails, onConfirm, loadin
             <span className="font-semibold text-gray-800">${formatMoney(orderDetails.total)}</span>
           </div>
 
-          <label className="flex items-center gap-3 cursor-pointer group">
+          <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
               checked={includeDelivery}
@@ -90,16 +139,17 @@ const TransferPaymentModal = ({ isOpen, onClose, orderDetails, onConfirm, loadin
         </div>
 
         <button
-          onClick={() => onConfirm(includeDelivery, totalToPay)}
+          onClick={handleConfirm}
           disabled={loading}
           className="w-full bg-green-500 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl transition shadow-lg flex items-center justify-center gap-2"
         >
           <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WA" className="w-6 h-6" />
           {loading ? 'Procesando...' : 'Enviar comprobante'}
         </button>
+
       </div>
     </Modal>
   );
 };
 
-export default TransferPaymentModal;
+export default ConfirmarPedidoYPagoModal;

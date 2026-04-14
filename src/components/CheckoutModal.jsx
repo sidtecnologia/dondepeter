@@ -3,6 +3,7 @@ import Modal from './ui/Modal';
 import { useShop } from '../context/ShopContext';
 import PrivacyContent from '../utils/privacy';
 import { formatMoney } from '../utils/format';
+import ConfirmarPedidoYPagoModal from './ConfirmarPedidoYPagoModal';
 
 const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
   const { processOrder } = useShop();
@@ -14,8 +15,8 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
     payment: 'Efectivo',
     terms: false
   });
-
   const [isPrivacyOpen, setPrivacyOpen] = useState(false);
+  const [transferOrder, setTransferOrder] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -23,12 +24,16 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
       alert('Debes aceptar los términos y condiciones');
       return;
     }
-
     setLoading(true);
     try {
       const details = await processOrder(formData);
-      onClose();
-      onSuccess(details);
+      if (formData.payment === 'Transferencia') {
+        setTransferOrder(details);
+        onClose();
+      } else {
+        onClose();
+        onSuccess(details);
+      }
     } catch (error) {
       alert(error.message || 'Error procesando la orden');
     } finally {
@@ -146,6 +151,12 @@ const CheckoutModal = ({ isOpen, onClose, onSuccess }) => {
           </div>
         </div>
       </Modal>
+
+      <ConfirmarPedidoYPagoModal
+        isOpen={!!transferOrder}
+        onClose={() => setTransferOrder(null)}
+        orderDetails={transferOrder}
+      />
     </>
   );
 };
