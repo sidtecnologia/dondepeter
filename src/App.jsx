@@ -9,10 +9,12 @@ import SuccessModal from './components/SuccessModal';
 import BusinessModal from './components/BusinessModal';
 import InstallPrompt from './components/InstallPrompt';
 import BannerCarousel from './components/BannerCarousel';
+import ExitConfirmDialog from './components/ExitConfirmDialog';
 import Toasts from './components/Toast';
 import StoreStatusBanner from './components/StoreStatusBanner';
 import { useStoreHours } from './hooks/useStoreHours';
 import { Loader2, Info } from 'lucide-react';
+
 
 const shuffleArray = (arr) => {
   const copy = [...arr];
@@ -52,6 +54,26 @@ const StoreContent = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [successOrder, setSuccessOrder] = useState(null);
+  const [showExitDialog, setShowExitDialog] = useState(false);
+
+  useEffect(() => {
+    window.history.pushState({ appEntry: true }, '');
+
+    const handlePopState = (e) => {
+      if (!e.state || !e.state.modal) {
+        window.history.pushState({ appEntry: true }, '');
+        setShowExitDialog(true);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleExitConfirm = () => {
+    window.removeEventListener('popstate', () => {});
+    window.history.go(-2);
+  };
 
   useEffect(() => {
     if (products.length > 0) {
@@ -76,8 +98,8 @@ const StoreContent = () => {
   const filteredProducts = useMemo(() => {
     return products.filter(p => {
       const searchLower = searchTerm.toLowerCase().trim();
-      const matchesSearch = !searchLower || 
-        p.name.toLowerCase().includes(searchLower) || 
+      const matchesSearch = !searchLower ||
+        p.name.toLowerCase().includes(searchLower) ||
         (p.description && p.description.toLowerCase().includes(searchLower)) ||
         (p.category && p.category.toLowerCase().includes(searchLower));
       const matchesCategory = selectedCategory === 'Todo' || p.category === selectedCategory;
@@ -127,7 +149,7 @@ const StoreContent = () => {
 
       <main className="max-w-6xl mx-auto px-3 py-4">
         {!isStoreOpen && <StoreStatusBanner />}
-        
+
         <BannerCarousel images={banners} speed={48} />
 
         <Categories
@@ -222,6 +244,11 @@ const StoreContent = () => {
       <BusinessModal />
       <InstallPrompt />
       <Toasts />
+      <ExitConfirmDialog
+        isOpen={showExitDialog}
+        onConfirm={handleExitConfirm}
+        onCancel={() => setShowExitDialog(false)}
+      />
     </div>
   );
 };

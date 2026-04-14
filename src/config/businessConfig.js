@@ -6,8 +6,8 @@ export const BUSINESS_CONFIG = {
   mapsUrl: "https://maps.google.com/?q=Cra.12+#8+sur+128,+Socorro,+Santander",
   schedule: {
     label: "Lun - Dom: 2:00 pm - 11:00 pm",
-    openHour: 14,
-    closeHour: 23,
+    openHour: 0,
+    closeHour: 24,
     timezone: "America/Bogota"
   }
 };

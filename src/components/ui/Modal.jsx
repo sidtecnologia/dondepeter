@@ -1,26 +1,29 @@
 import { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
+import { useBackGuard } from '../../hooks/useBackGuard';
 
-const Modal = ({ isOpen, onClose, title, children }) => {
+const Modal = ({ isOpen, onClose, title, children, disableOutsideClick = false }) => {
   const modalRef = useRef();
+  useBackGuard(isOpen, onClose);
 
   useEffect(() => {
-    const handleOutsideClick = (e) => {
-      if (modalRef.current && !modalRef.current.contains(e.target)) {
-        onClose();
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleOutsideClick);
-      document.body.style.overflow = 'hidden';
+  const handleOutsideClick = (e) => {
+    if (disableOutsideClick) return;
+    if (modalRef.current && !modalRef.current.contains(e.target)) {
+      onClose();
     }
+  };
 
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen, onClose]);
+  if (isOpen) {
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.body.style.overflow = 'hidden';
+  }
+
+  return () => {
+    document.removeEventListener('mousedown', handleOutsideClick);
+    document.body.style.overflow = 'unset';
+  };
+}, [isOpen, onClose, disableOutsideClick]);
 
   if (!isOpen) return null;
 
